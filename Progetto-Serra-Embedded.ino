@@ -118,3 +118,4 @@ void TaskPrintNumbers(void *pvParameters)  // This is a task.
     vTaskDelay(1000);  // one tick delay (15ms) in between reads for stability
     i++;
   }
+}
