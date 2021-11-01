@@ -8,6 +8,7 @@ static TaskHandle_t task_handle_Coordinator = NULL;
 static TaskHandle_t task_handle_ReadDHT11Temperature = NULL;
 static TaskHandle_t task_handle_ReadDHT11Humidity = NULL;
 static TaskHandle_t task_handle_ReadYL69SoilHumidity = NULL;
+static TaskHandle_t task_handle_ActuatorIrrigator = NULL;
 
 /*--------------------------------------------------*/
 /*----------- Task Function Prototypes -------------*/
@@ -16,6 +17,7 @@ void TaskCoordinator ( void *pvParameters );
 void TaskReadDHT11Temperature( void *pvParameters );
 void TaskReadDHT11Humidity( void *pvParameters );
 void TaskReadYL69SoilHumidity( void *pvParameters );
+void TaskActuatorIrrigator( void *pvParameters );
 
 /*--------------------------------------------------*/
 /*----------------- Queue Handles ------------------*/
@@ -35,6 +37,15 @@ void setup() {
   // initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
 
+  xTaskCreatePinnedToCore(
+    TaskActuatorIrrigator
+    ,  "TaskActuatorIrrigator"   // A name just for humans
+    ,  1024  // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  NULL
+    ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  &task_handle_ActuatorIrrigator
+    ,  ARDUINO_RUNNING_CORE);
+    
   xTaskCreatePinnedToCore(
     TaskCoordinator
     ,  "TaskCoordinator"   // A name just for humans
@@ -88,7 +99,47 @@ void loop()
 /*--------------------------------------------------*/
 /*---------------------- Tasks ---------------------*/
 /*--------------------------------------------------*/
+void TaskActuatorIrrigator(void *pvParameters)
+{
+  (void) pvParameters;
+  
+  /* 
+    This task executes only when the Coordinator Task decides to do so (that is when soil humidity is under certain threshold).
+    This task executes only for a certain number of ticks, then it is suspended. 
+  */
 
+  // When first created, this task is suspended until it's resumed by the Coordinator
+  vTaskSuspend( NULL );
+  
+  #ifdef DEBUG
+    Serial.print("Irrigator Activated.");                       
+  #endif
+  
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  TickType_t IrrigatorExecutionTimeInTicks = IrrigatorExecutionTime / portTICK_PERIOD_MS;
+  
+  for(;;)
+  {
+    /* put on high the pin that starts the irrigator */
+    
+    // if execution time elapsed, suspend 
+    if(xTaskGetTickCount() - xLastWakeTime > IrrigatorExecutionTimeInTicks)
+    {
+      #ifdef DEBUG
+        Serial.print("Irrigator Suspended.");                       
+      #endif
+      
+      vTaskSuspend( NULL );
+      
+      #ifdef DEBUG
+        Serial.print("Irrigator Activated.");                       
+      #endif
+      
+      xLastWakeTime = xTaskGetTickCount();
+    }
+  }
+  
+}
 void TaskCoordinator(void *pvParameters)
 {
   (void) pvParameters;
@@ -127,12 +178,18 @@ void TaskCoordinator(void *pvParameters)
           Serial.print("Soil humidity: ");
           Serial.println(sensor_reading_struct.sensor_reading);
         #endif
-        
+
+        // Irrigator actuation logic
+        if(sensor_reading_struct.sensor_reading > SoilHumidityIrrigatorThreshold_IfBelowActivate)
+        {
+          vTaskResume(task_handle_ActuatorIrrigator);
+        }
         break;
         
       default:
         break;
     }
+    
     vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);  
     
   }
@@ -176,7 +233,7 @@ void TaskReadDHT11Temperature(void *pvParameters)
 void TaskReadDHT11Humidity(void *pvParameters)
 {
   (void) pvParameters;
-
+  
   /*
     Read humidity in per cent. 
     So, if the humidity is 60 per cent(which is the average humidity), then 60 per cent of the air around you is water vapor
@@ -185,8 +242,10 @@ void TaskReadDHT11Humidity(void *pvParameters)
   struct sensor_msg sensor_reading_struct;
   sensor_reading_struct.sensor = Sensor_Id_DHT11Humidity;
   
+  
   for (;;) 
   {
+    
     #ifdef DEBUG
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else

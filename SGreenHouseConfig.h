@@ -21,6 +21,11 @@
 #endif
 
 /*--------------------------------------------------*/
+/*-------------- Temporary Defines -----------------*/
+/*--------------------------------------------------*/
+#define SoilHumidityIrrigatorThreshold_IfBelowActivate 30 // in per cent 
+#define IrrigatorExecutionTime 5000
+/*--------------------------------------------------*/
 /*------------------ Pin Defines -------------------*/
 /*--------------------------------------------------*/
 #define DHT11PIN 4 // Digital temperature and air humidity sensor
