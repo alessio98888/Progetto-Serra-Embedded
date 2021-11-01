@@ -115,29 +115,22 @@ void TaskActuatorIrrigator(void *pvParameters)
     Serial.print("Irrigator Activated.");                       
   #endif
   
+ 
   TickType_t xLastWakeTime = xTaskGetTickCount();
-  TickType_t IrrigatorExecutionTimeInTicks = IrrigatorExecutionTime / portTICK_PERIOD_MS;
   
   for(;;)
   {
     /* put on high the pin that starts the irrigator */
+
+    // The task will be unblocked at time (*xLastWakeTime + (IrrigatorExecutionTime / portTICK_PERIOD_MS) ) 
+    vTaskDelayUntil(&xLastWakeTime, IrrigatorExecutionTime / portTICK_PERIOD_MS);
+
+    /* put on low the pin that starts the irrigator */
     
-    // if execution time elapsed, suspend 
-    if(xTaskGetTickCount() - xLastWakeTime > IrrigatorExecutionTimeInTicks)
-    {
-      #ifdef DEBUG
-        Serial.print("Irrigator Suspended.");                       
-      #endif
-      
-      vTaskSuspend( NULL );
-      
-      #ifdef DEBUG
-        Serial.print("Irrigator Activated.");                       
-      #endif
-      
-      xLastWakeTime = xTaskGetTickCount();
-    }
+    vTaskSuspend(NULL);
   }
+  
+  
   
 }
 void TaskCoordinator(void *pvParameters)
