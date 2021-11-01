@@ -1,39 +1,5 @@
 #include "DHT.h"
-
-// MISRA-C Compliance (size specific data types). ESP32 boards use 32 bit for storing floats
-typedef float float32_t;
-
-#if CONFIG_FREERTOS_UNICORE
-  #define ARDUINO_RUNNING_CORE 0
-#else
-  #define ARDUINO_RUNNING_CORE 1
-#endif
-
-#ifndef LED_BUILTIN
-  #define LED_BUILTIN 2
-#endif
-
-/*--------------------------------------------------*/
-/*------------------ Pin Defines -------------------*/
-/*--------------------------------------------------*/
-#define DHT11PIN 4 // Digital temperature and air humidity sensor
-#define YL69PIN 22 // Analog soil humidity sensor
-
-/*--------------------------------------------------*/
-/*----------- Task Function Prototypes -------------*/
-/*--------------------------------------------------*/
-void TaskCoordinator ( void *pvParameters );
-void TaskReadDHT11Temperature( void *pvParameters );
-void TaskReadDHT11Humidity( void *pvParameters );
-void TaskReadYL69SoilHumidity( void *pvParameters );
-
-/*--------------------------------------------------*/
-/*--------- Task Periods(in milliseconds) ----------*/
-/*--------------------------------------------------*/
-#define CoordinatorPeriod 100
-#define DHT11TemperaturePeriod 5000 // 5 sec -- Temporary debug value
-#define DHT11HumidityPeriod 5000    // 5 sec -- Temporary debug value
-#define YL69SoilHumidityPeriod 5000 // 5 sec -- Temporary debug value
+#include "SGreenHouseConfig.h"
 
 /*--------------------------------------------------*/
 /*------------------ Task Handles ------------------*/
@@ -44,35 +10,23 @@ static TaskHandle_t task_handle_ReadDHT11Humidity = NULL;
 static TaskHandle_t task_handle_ReadYL69SoilHumidity = NULL;
 
 /*--------------------------------------------------*/
-/*------------ Queue Handle and Config -------------*/
+/*----------- Task Function Prototypes -------------*/
+/*--------------------------------------------------*/
+void TaskCoordinator ( void *pvParameters );
+void TaskReadDHT11Temperature( void *pvParameters );
+void TaskReadDHT11Humidity( void *pvParameters );
+void TaskReadYL69SoilHumidity( void *pvParameters );
+
+/*--------------------------------------------------*/
+/*----------------- Queue Handles ------------------*/
 /*--------------------------------------------------*/
 QueueHandle_t coordinator_queue = NULL;
-#define coordinator_queue_len 10
-
-enum sensor_id{Sensor_Id_DHT11Temperature, Sensor_Id_DHT11Humidity, Sensor_Id_YL69SoilHumidity};
-
-struct sensor_msg{
-  enum sensor_id sensor;
-  float32_t sensor_reading;
-};
 
 /*--------------------------------------------------*/
 /*------------ Digital sensors Config --------------*/
 /*--------------------------------------------------*/
 //Create a DHT object called dht on the pin and with the sensor type you’ve specified previously
 DHT dht(DHT11PIN, DHT11);
-
-
-/*--------------------------------------------------*/
-/*-------------------- DEBUG -----------------------*/
-/*--------------------------------------------------*/
-
-#define DEBUG 1
-
-#ifdef DEBUG
-  #define sensorSim() ((float32_t) random(0,100))
-#endif
-
 
 
 // the setup function runs once when you press reset or power the board
