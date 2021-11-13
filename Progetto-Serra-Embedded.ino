@@ -42,7 +42,7 @@ void setup() {
     ,  "TaskActuatorIrrigator"   // A name just for humans
     ,  1024  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
-    ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  2  // Higher priority for actuator
     ,  &task_handle_ActuatorIrrigator
     ,  ARDUINO_RUNNING_CORE);
     
@@ -111,24 +111,30 @@ void TaskActuatorIrrigator(void *pvParameters)
   // When first created, this task is suspended until it's resumed by the Coordinator
   vTaskSuspend( NULL );
   
-  #ifdef DEBUG
-    Serial.print("Irrigator Activated.");                       
-  #endif
   
- 
+
   TickType_t xLastWakeTime = xTaskGetTickCount();
   
   for(;;)
   {
+    #ifdef DEBUG
+      Serial.println("Irrigator Activated.");                       
+    #endif
+    
     /* put on high the pin that starts the irrigator */
 
     // The task will be unblocked at time (*xLastWakeTime + (IrrigatorExecutionTime / portTICK_PERIOD_MS) ) 
     vTaskDelayUntil(&xLastWakeTime, IrrigatorExecutionTime / portTICK_PERIOD_MS);
 
     /* put on low the pin that starts the irrigator */
+
+    #ifdef DEBUG
+      Serial.println("Irrigator Suspended.");                       
+    #endif
     
     vTaskSuspend(NULL);
   }
+  
   
   
   
@@ -173,7 +179,7 @@ void TaskCoordinator(void *pvParameters)
         #endif
 
         // Irrigator actuation logic
-        if(sensor_reading_struct.sensor_reading > SoilHumidityIrrigatorThreshold_IfBelowActivate)
+        if(sensor_reading_struct.sensor_reading < IrrigatorActivationThreshold)
         {
           vTaskResume(task_handle_ActuatorIrrigator);
         }

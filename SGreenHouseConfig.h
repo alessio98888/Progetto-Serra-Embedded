@@ -23,7 +23,7 @@
 /*--------------------------------------------------*/
 /*-------------- Temporary Defines -----------------*/
 /*--------------------------------------------------*/
-#define SoilHumidityIrrigatorThreshold_IfBelowActivate 30 // in per cent 
+#define IrrigatorActivationThreshold 30 // in per cent 
 #define IrrigatorExecutionTime 5000
 /*--------------------------------------------------*/
 /*------------------ Pin Defines -------------------*/
