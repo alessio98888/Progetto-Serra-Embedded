@@ -27,9 +27,8 @@ QueueHandle_t coordinator_queue = NULL;
 /*--------------------------------------------------*/
 /*------------ Digital sensors Config --------------*/
 /*--------------------------------------------------*/
-//Create a DHT object called dht on the pin and with the sensor type you’ve specified previously
+// Create a DHT object called dht on the pin and with the sensor type you’ve specified previously
 DHT dht(DHT11PIN, DHT11);
-
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -310,7 +309,7 @@ void TaskActuatorIrrigator(void *pvParameters)
   TickType_t xLastWakeTime = xTaskGetTickCount();
   
   for(;;)
-  {
+  {  
     #ifdef DEBUG_ACTUATORS
       #ifdef ACTUATORS_VERBOSE_DEBUG
         Serial.println("Irrigator Activated.");
@@ -318,13 +317,11 @@ void TaskActuatorIrrigator(void *pvParameters)
     #else
       digitalWrite(irrigatorPIN, HIGH);                  
     #endif
-    
-    /* put on high the pin that starts the irrigator */
 
-    // The task will be unblocked at time (*xLastWakeTime + (IrrigatorExecutionTime / portTICK_PERIOD_MS) ) 
-    vTaskDelayUntil(&xLastWakeTime, IrrigatorExecutionTime / portTICK_PERIOD_MS);
 
-    /* put on low the pin that starts the irrigator */
+    // The task will be unblocked after the specified amount of time (this represents the amount of time spent irrigating)
+    vTaskDelay(IrrigatorExecutionTime / portTICK_PERIOD_MS);
+
 
     #ifdef DEBUG_ACTUATORS
       #ifdef ACTUATORS_VERBOSE_DEBUG
@@ -333,6 +330,7 @@ void TaskActuatorIrrigator(void *pvParameters)
     #else
       digitalWrite(irrigatorPIN, LOW);                    
     #endif
+    
 
     #ifdef PRINT_TASK_MEMORY_USAGE
       // Print out remaining stack memory (in words of 4 bytes)
