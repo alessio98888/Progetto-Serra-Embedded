@@ -17,7 +17,22 @@
 #define DEBUG
 
 #ifdef DEBUG
-  #define sensorSim() ((float32_t) random(0,100))
+
+  // Sensors
+  #define DEBUG_SENSORS // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
+  //#define SENSORS_VERBOSE_DEBUG // Enables verbose sensor output
+
+  #ifdef DEBUG_SENSORS
+    #define sensorSim() ((float32_t) random(0,100))
+  #endif
+
+  // Actuators
+  #define DEBUG_ACTUATORS // Disables the actual activation of the actuator devices
+  #define ACTUATORS_VERBOSE_DEBUG // Enables verbose atuator output
+
+  // Memory usage
+  //#define PRINT_TASK_MEMORY_USAGE
+  
 #endif
 
 /*--------------------------------------------------*/
@@ -28,9 +43,11 @@
 /*--------------------------------------------------*/
 /*------------------ Pin Defines -------------------*/
 /*--------------------------------------------------*/
+// Sensors
 #define DHT11PIN 4 // Digital temperature and air humidity sensor
 #define YL69PIN 22 // Analog soil humidity sensor
-
+// Actuators
+#define irrigatorPIN 32 // Controls the custom PCB in charge of the irrigator management
 /*--------------------------------------------------*/
 /*--------- Task Periods(in milliseconds) ----------*/
 /*--------------------------------------------------*/

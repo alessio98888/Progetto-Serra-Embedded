@@ -87,6 +87,9 @@ void setup() {
   // Necessary initializations to perform sensor readings
   dht.begin();
   pinMode(YL69PIN, INPUT);
+
+  // Necessary initializations to access actuators
+  pinMode(irrigatorPIN, OUTPUT);
   
   // Now the task scheduler, which takes over control of scheduling individual tasks, is automatically started.
 }
@@ -99,46 +102,7 @@ void loop()
 /*--------------------------------------------------*/
 /*---------------------- Tasks ---------------------*/
 /*--------------------------------------------------*/
-void TaskActuatorIrrigator(void *pvParameters)
-{
-  (void) pvParameters;
-  
-  /* 
-    This task executes only when the Coordinator Task decides to do so (that is when soil humidity is under certain threshold).
-    This task executes only for a certain number of ticks, then it is suspended. 
-  */
 
-  // When first created, this task is suspended until it's resumed by the Coordinator
-  vTaskSuspend( NULL );
-  
-  
-
-  TickType_t xLastWakeTime = xTaskGetTickCount();
-  
-  for(;;)
-  {
-    #ifdef DEBUG
-      Serial.println("Irrigator Activated.");                       
-    #endif
-    
-    /* put on high the pin that starts the irrigator */
-
-    // The task will be unblocked at time (*xLastWakeTime + (IrrigatorExecutionTime / portTICK_PERIOD_MS) ) 
-    vTaskDelayUntil(&xLastWakeTime, IrrigatorExecutionTime / portTICK_PERIOD_MS);
-
-    /* put on low the pin that starts the irrigator */
-
-    #ifdef DEBUG
-      Serial.println("Irrigator Suspended.");                       
-    #endif
-    
-    vTaskSuspend(NULL);
-  }
-  
-  
-  
-  
-}
 void TaskCoordinator(void *pvParameters)
 {
   (void) pvParameters;
@@ -155,27 +119,39 @@ void TaskCoordinator(void *pvParameters)
     {
       case Sensor_Id_DHT11Temperature:
         
-        #ifdef DEBUG
-          Serial.print("Temperature: ");                       
-          Serial.println(sensor_reading_struct.sensor_reading);
+        #ifdef DEBUG_SENSORS
+          #ifdef SENSORS_VERBOSE_DEBUG
+            Serial.print("Temperature: ");                       
+            Serial.println(sensor_reading_struct.sensor_reading);
+          #endif
+        #else
+          // **WIP**
         #endif
         
         break;
       
       case Sensor_Id_DHT11Humidity:
         
-        #ifdef DEBUG
-          Serial.print("Air humidity: ");
-          Serial.println(sensor_reading_struct.sensor_reading);
+        #ifdef DEBUG_SENSORS
+          #ifdef SENSORS_VERBOSE_DEBUG
+            Serial.print("Air humidity: ");
+            Serial.println(sensor_reading_struct.sensor_reading);
+          #endif
+        #else
+          // **WIP**
         #endif
         
         break;
 
       case Sensor_Id_YL69SoilHumidity:
 
-        #ifdef DEBUG
-          Serial.print("Soil humidity: ");
-          Serial.println(sensor_reading_struct.sensor_reading);
+        #ifdef DEBUG_SENSORS
+          #ifdef SENSORS_VERBOSE_DEBUG
+            Serial.print("Soil humidity: ");
+            Serial.println(sensor_reading_struct.sensor_reading);
+          #endif
+        #else
+          // **WIP**
         #endif
 
         // Irrigator actuation logic
@@ -189,7 +165,13 @@ void TaskCoordinator(void *pvParameters)
         break;
     }
     
-    vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);  
+    vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);
+
+    #ifdef PRINT_TASK_MEMORY_USAGE
+      // Print out remaining stack memory (in words of 4 bytes)
+      Serial.print("TaskCoordinator high water mark (words): ");
+      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    #endif
     
   }
 }
@@ -207,7 +189,7 @@ void TaskReadDHT11Temperature(void *pvParameters)
   
   for (;;) 
   {
-    #ifdef DEBUG
+    #ifdef DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
       sensor_reading_struct.sensor_reading = dht.readTemperature(); // actual sensor reading
@@ -222,10 +204,13 @@ void TaskReadDHT11Temperature(void *pvParameters)
       /* Failed to post the message */
     }
                     
-    vTaskDelay(DHT11TemperaturePeriod / portTICK_PERIOD_MS);  
-    // Print out remaining stack memory (in words of 4 bytes)
-    Serial.print("TaskReadDHT11Temperature high water mark (words): ");
-    Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    vTaskDelay(DHT11TemperaturePeriod / portTICK_PERIOD_MS);
+
+    #ifdef PRINT_TASK_MEMORY_USAGE
+      // Print out remaining stack memory (in words of 4 bytes)
+      Serial.print("TaskReadDHT11Temperature high water mark (words): ");
+      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    #endif
   }
 }
 
@@ -245,7 +230,7 @@ void TaskReadDHT11Humidity(void *pvParameters)
   for (;;) 
   {
     
-    #ifdef DEBUG
+    #ifdef DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
       sensor_reading_struct.sensor_reading = dht.readHumidity(); // actual sensor reading
@@ -260,10 +245,13 @@ void TaskReadDHT11Humidity(void *pvParameters)
       /* Failed to post the message */
     }
                     
-    vTaskDelay(DHT11HumidityPeriod / portTICK_PERIOD_MS);  
-    // Print out remaining stack memory (in words of 4 bytes)
-    Serial.print("TaskReadDHT11Humidity high water mark (words): ");
-    Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    vTaskDelay(DHT11HumidityPeriod / portTICK_PERIOD_MS);
+
+    #ifdef PRINT_TASK_MEMORY_USAGE
+      // Print out remaining stack memory (in words of 4 bytes)
+      Serial.print("TaskReadDHT11Humidity high water mark (words): ");
+      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    #endif
   }
 }
 
@@ -280,7 +268,7 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
   
   for (;;) 
   {
-    #ifdef DEBUG
+    #ifdef DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
       sensor_reading_struct.sensor_reading = map(analogRead(YL69PIN), 1023, 0, 0, 100);  // actual sensor reading
@@ -295,9 +283,63 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
       /* Failed to post the message */
     }
                     
-    vTaskDelay(YL69SoilHumidityPeriod / portTICK_PERIOD_MS);  
-    // Print out remaining stack memory (in words of 4 bytes)
-    Serial.print("TaskReadYL69SoilHumidity high water mark (words): ");
-    Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    vTaskDelay(YL69SoilHumidityPeriod / portTICK_PERIOD_MS);
+
+    #ifdef PRINT_TASK_MEMORY_USAGE
+      // Print out remaining stack memory (in words of 4 bytes)
+      Serial.print("TaskReadYL69SoilHumidity high water mark (words): ");
+      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    #endif
   }
+}
+
+void TaskActuatorIrrigator(void *pvParameters)
+{
+  (void) pvParameters;
+  
+  /* 
+    This task executes only when the Coordinator Task decides to do so (that is when soil humidity is under certain threshold).
+    This task executes only for a certain number of ticks, then it is suspended. 
+  */
+
+  // When first created, this task is suspended until it's resumed by the Coordinator
+  vTaskSuspend( NULL );
+  
+  
+
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  
+  for(;;)
+  {
+    #ifdef DEBUG_ACTUATORS
+      #ifdef ACTUATORS_VERBOSE_DEBUG
+        Serial.println("Irrigator Activated.");
+      #endif
+    #else
+      digitalWrite(irrigatorPIN, HIGH);                  
+    #endif
+    
+    /* put on high the pin that starts the irrigator */
+
+    // The task will be unblocked at time (*xLastWakeTime + (IrrigatorExecutionTime / portTICK_PERIOD_MS) ) 
+    vTaskDelayUntil(&xLastWakeTime, IrrigatorExecutionTime / portTICK_PERIOD_MS);
+
+    /* put on low the pin that starts the irrigator */
+
+    #ifdef DEBUG_ACTUATORS
+      #ifdef ACTUATORS_VERBOSE_DEBUG
+        Serial.println("Irrigator Suspended.");
+      #endif
+    #else
+      digitalWrite(irrigatorPIN, LOW);                    
+    #endif
+
+    #ifdef PRINT_TASK_MEMORY_USAGE
+      // Print out remaining stack memory (in words of 4 bytes)
+      Serial.print("TaskActuatorIrrigator high water mark (words): ");
+      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    #endif
+    
+    vTaskSuspend(NULL);
+  } 
 }
