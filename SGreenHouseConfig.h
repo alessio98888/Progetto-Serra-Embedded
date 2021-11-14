@@ -1,6 +1,8 @@
 #ifndef S_GREENHOUSE_CONFIG_H /*== INCLUDE ==*/
 #define S_GREENHOUSE_CONFIG_H /*=== GUARD ===*/
 
+#include "secrets.h"
+
 #if CONFIG_FREERTOS_UNICORE
   #define ARDUINO_RUNNING_CORE 0
 #else
