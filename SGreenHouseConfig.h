@@ -36,6 +36,15 @@
 #endif
 
 /*--------------------------------------------------*/
+/*------------- WIFI configuration -----------------*/
+/*--------------------------------------------------*/
+// WiFi credentials
+const char* ssid = SECRET_SSID;
+const char* password = SECRET_PASS;
+// MQTT broker identifiers 
+const char* serverAddress = SECRET_SERVER_ADDR;
+const int port = SECRET_SERVER_PORT;
+/*--------------------------------------------------*/
 /*-------------- Temporary Defines -----------------*/
 /*--------------------------------------------------*/
 #define IrrigatorActivationThreshold 30 // in per cent 
