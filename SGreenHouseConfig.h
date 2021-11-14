@@ -20,6 +20,9 @@
 
 #ifdef DEBUG
 
+  // Connectivity
+  #define WiFi_CONNECTION_VERBOSE_DEBUG
+  
   // Sensors
   #define DEBUG_SENSORS // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
   //#define SENSORS_VERBOSE_DEBUG // Enables verbose sensor output
@@ -38,11 +41,15 @@
 #endif
 
 /*--------------------------------------------------*/
-/*------------- WIFI configuration -----------------*/
+/*---------- Connectivity configuration ------------*/
 /*--------------------------------------------------*/
 // WiFi credentials
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PASS;
+
+// WiFi connection configuration
+#define ConnectionTimeDelay 5000
+
 // MQTT broker identifiers 
 const char* serverAddress = SECRET_SERVER_ADDR;
 const int port = SECRET_SERVER_PORT;
@@ -62,7 +69,7 @@ const int port = SECRET_SERVER_PORT;
 /*--------------------------------------------------*/
 /*--------- Task Periods(in milliseconds) ----------*/
 /*--------------------------------------------------*/
-#define CoordinatorPeriod 100
+#define CoordinatorPeriod 1000
 #define DHT11TemperaturePeriod 5000 // 5 sec -- Temporary debug value
 #define DHT11HumidityPeriod 5000    // 5 sec -- Temporary debug value
 #define YL69SoilHumidityPeriod 5000 // 5 sec -- Temporary debug value

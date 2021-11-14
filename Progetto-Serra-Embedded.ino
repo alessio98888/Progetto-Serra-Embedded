@@ -1,3 +1,4 @@
+#include <WiFi.h>
 #include "DHT.h"
 #include "SGreenHouseConfig.h"
 
@@ -9,6 +10,7 @@ static TaskHandle_t task_handle_ReadDHT11Temperature = NULL;
 static TaskHandle_t task_handle_ReadDHT11Humidity = NULL;
 static TaskHandle_t task_handle_ReadYL69SoilHumidity = NULL;
 static TaskHandle_t task_handle_ActuatorIrrigator = NULL;
+static TaskHandle_t task_handle_ConnectWiFi = NULL;
 
 /*--------------------------------------------------*/
 /*----------- Task Function Prototypes -------------*/
@@ -18,11 +20,18 @@ void TaskReadDHT11Temperature( void *pvParameters );
 void TaskReadDHT11Humidity( void *pvParameters );
 void TaskReadYL69SoilHumidity( void *pvParameters );
 void TaskActuatorIrrigator( void *pvParameters );
+void TaskConnectWiFi( void *pvParameters );
 
 /*--------------------------------------------------*/
 /*----------------- Queue Handles ------------------*/
 /*--------------------------------------------------*/
 QueueHandle_t coordinator_queue = NULL;
+
+/*--------------------------------------------------*/
+/*----------------- Connectivity -------------------*/
+/*--------------------------------------------------*/
+
+WiFiClient client;
 
 /*--------------------------------------------------*/
 /*------------ Digital sensors Config --------------*/
@@ -36,15 +45,17 @@ void setup() {
   // initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
 
+  coordinator_queue = xQueueCreate(coordinator_queue_len, sizeof(struct sensor_msg));
+
   xTaskCreatePinnedToCore(
-    TaskActuatorIrrigator
-    ,  "TaskActuatorIrrigator"   // A name just for humans
-    ,  1024  // This stack size can be checked & adjusted by reading the Stack Highwater
+    TaskConnectWiFi
+    ,  "TaskConnectWiFi"   // A name just for humans
+    ,  5024  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
-    ,  2  // Higher priority for actuator
-    ,  &task_handle_ActuatorIrrigator
+    ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  &task_handle_ConnectWiFi 
     ,  ARDUINO_RUNNING_CORE);
-    
+
   xTaskCreatePinnedToCore(
     TaskCoordinator
     ,  "TaskCoordinator"   // A name just for humans
@@ -53,7 +64,7 @@ void setup() {
     ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  &task_handle_Coordinator 
     ,  ARDUINO_RUNNING_CORE);
-    
+  
   xTaskCreatePinnedToCore(
     TaskReadDHT11Temperature
     ,  "TaskReadDHT11Temperature"   
@@ -81,7 +92,14 @@ void setup() {
     ,  &task_handle_ReadYL69SoilHumidity
     ,  ARDUINO_RUNNING_CORE);
 
-  coordinator_queue = xQueueCreate(coordinator_queue_len, sizeof(struct sensor_msg));
+   xTaskCreatePinnedToCore(
+    TaskActuatorIrrigator
+    ,  "TaskActuatorIrrigator"   // A name just for humans
+    ,  1024  // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  NULL
+    ,  3  // Higher priority for actuator
+    ,  &task_handle_ActuatorIrrigator
+    ,  ARDUINO_RUNNING_CORE);
 
   // Necessary initializations to perform sensor readings
   dht.begin();
@@ -305,14 +323,11 @@ void TaskActuatorIrrigator(void *pvParameters)
   vTaskSuspend( NULL );
   
   
-
-  TickType_t xLastWakeTime = xTaskGetTickCount();
-  
   for(;;)
   {  
     #ifdef DEBUG_ACTUATORS
       #ifdef ACTUATORS_VERBOSE_DEBUG
-        Serial.println("Irrigator Activated.");
+        Serial.println("***Irrigator Activated***");
       #endif
     #else
       digitalWrite(irrigatorPIN, HIGH);                  
@@ -325,7 +340,7 @@ void TaskActuatorIrrigator(void *pvParameters)
 
     #ifdef DEBUG_ACTUATORS
       #ifdef ACTUATORS_VERBOSE_DEBUG
-        Serial.println("Irrigator Suspended.");
+        Serial.println("***Irrigator Suspended***");
       #endif
     #else
       digitalWrite(irrigatorPIN, LOW);                    
@@ -340,4 +355,42 @@ void TaskActuatorIrrigator(void *pvParameters)
     
     vTaskSuspend(NULL);
   } 
+}
+
+void TaskConnectWiFi( void *pvParameters )
+{
+  (void) pvParameters;
+
+
+  for(;;)
+  {
+    int status = WL_DISCONNECTED; // set the known WiFi status to disconneted
+
+    while ( status != WL_CONNECTED) { 
+      
+      #ifdef WiFi_CONNECTION_VERBOSE_DEBUG
+        Serial.print("Attempting to connect to WEP network, SSID: ");
+        Serial.println(ssid);
+      #endif
+
+      // start a connection attempt
+      status = WiFi.begin(ssid, password);
+      
+      // wait a set amount of time for connection:
+      vTaskDelay(ConnectionTimeDelay / portTICK_PERIOD_MS);
+    }
+
+    #ifdef WiFi_CONNECTION_VERBOSE_DEBUG
+      Serial.print("SUCCESSFULLLY CONNECTED TO: ");
+      Serial.println(ssid);
+    #endif
+
+    #ifdef PRINT_TASK_MEMORY_USAGE
+      // Print out remaining stack memory (in words of 4 bytes)
+      Serial.print("TaskConnectWiFi high water mark (words): ");
+      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    #endif
+    
+    vTaskSuspend(NULL);
+  }
 }
