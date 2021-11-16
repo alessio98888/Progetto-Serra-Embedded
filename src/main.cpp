@@ -1,5 +1,8 @@
+#include <Arduino.h>
 #include <WiFi.h>
-#include "DHT.h"
+#include <Adafruit_Sensor.h>
+#include <DHT_U.h>
+#include <DHT.h>
 #include "SGreenHouseConfig.h"
 
 /*--------------------------------------------------*/
@@ -107,8 +110,9 @@ void setup() {
 
   // Necessary initializations to access actuators
   pinMode(irrigatorPIN, OUTPUT);
-  
+
   // Now the task scheduler, which takes over control of scheduling individual tasks, is automatically started.
+
 }
 
 void loop()

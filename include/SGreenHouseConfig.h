@@ -33,7 +33,7 @@
 
   // Actuators
   #define DEBUG_ACTUATORS // Disables the actual activation of the actuator devices
-  //#define ACTUATORS_VERBOSE_DEBUG // Enables verbose atuator output
+  #define ACTUATORS_VERBOSE_DEBUG // Enables verbose atuator output
 
   // Memory usage
   //#define PRINT_TASK_MEMORY_USAGE
@@ -56,7 +56,7 @@ const char* ssid = SECRET_SSID;
 const char* password = SECRET_PASS;
 
 // WiFi connection configuration
-#define ConnectionTimeDelay 10000
+#define ConnectionTimeDelay 5000
 
 // MQTT broker identifiers 
 const char* serverAddress = SECRET_SERVER_ADDR;
