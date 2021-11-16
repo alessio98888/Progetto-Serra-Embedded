@@ -25,7 +25,7 @@
   
   // Sensors
   #define DEBUG_SENSORS // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
-  //#define SENSORS_VERBOSE_DEBUG // Enables verbose sensor output
+  #define SENSORS_VERBOSE_DEBUG // Enables verbose sensor output
 
   #ifdef DEBUG_SENSORS
     #define sensorSim() ((float32_t) random(0,100))
@@ -33,7 +33,7 @@
 
   // Actuators
   #define DEBUG_ACTUATORS // Disables the actual activation of the actuator devices
-  #define ACTUATORS_VERBOSE_DEBUG // Enables verbose atuator output
+  //#define ACTUATORS_VERBOSE_DEBUG // Enables verbose atuator output
 
   // Memory usage
   //#define PRINT_TASK_MEMORY_USAGE
@@ -41,14 +41,22 @@
 #endif
 
 /*--------------------------------------------------*/
-/*---------- Connectivity configuration ------------*/
+/*----------- Task priority assignation ------------*/
+/*--------------------------------------------------*/
+#define COORDINATOR_PRIORITY 2
+#define CONNECT_WIFI_PRIORITY 4
+#define MQTT_PUBLISH_PRIORITY 2
+#define SENSOR_TASKS_PRIORITY 1
+#define ACTUATOR_TASKS_PRIORITY 5
+/*--------------------------------------------------*/
+/*----------- Connectivity configuration -----------*/
 /*--------------------------------------------------*/
 // WiFi credentials
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PASS;
 
 // WiFi connection configuration
-#define ConnectionTimeDelay 5000
+#define ConnectionTimeDelay 10000
 
 // MQTT broker identifiers 
 const char* serverAddress = SECRET_SERVER_ADDR;
@@ -69,7 +77,7 @@ const int port = SECRET_SERVER_PORT;
 /*--------------------------------------------------*/
 /*--------- Task Periods(in milliseconds) ----------*/
 /*--------------------------------------------------*/
-#define CoordinatorPeriod 1000
+#define CoordinatorPeriod 500
 #define DHT11TemperaturePeriod 5000 // 5 sec -- Temporary debug value
 #define DHT11HumidityPeriod 5000    // 5 sec -- Temporary debug value
 #define YL69SoilHumidityPeriod 5000 // 5 sec -- Temporary debug value

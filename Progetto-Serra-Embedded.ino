@@ -48,21 +48,21 @@ void setup() {
   coordinator_queue = xQueueCreate(coordinator_queue_len, sizeof(struct sensor_msg));
 
   xTaskCreatePinnedToCore(
-    TaskConnectWiFi
-    ,  "TaskConnectWiFi"   // A name just for humans
-    ,  5024  // This stack size can be checked & adjusted by reading the Stack Highwater
-    ,  NULL
-    ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
-    ,  &task_handle_ConnectWiFi 
-    ,  ARDUINO_RUNNING_CORE);
-
-  xTaskCreatePinnedToCore(
     TaskCoordinator
     ,  "TaskCoordinator"   // A name just for humans
     ,  1024  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
-    ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  COORDINATOR_PRIORITY  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  &task_handle_Coordinator 
+    ,  ARDUINO_RUNNING_CORE);
+
+  xTaskCreatePinnedToCore(
+    TaskConnectWiFi
+    ,  "TaskConnectWiFi"   
+    ,  5024  
+    ,  NULL
+    ,  CONNECT_WIFI_PRIORITY
+    ,  &task_handle_ConnectWiFi 
     ,  ARDUINO_RUNNING_CORE);
   
   xTaskCreatePinnedToCore(
@@ -70,7 +70,7 @@ void setup() {
     ,  "TaskReadDHT11Temperature"   
     ,  1024  
     ,  NULL
-    ,  1  
+    ,  SENSOR_TASKS_PRIORITY  
     ,  &task_handle_ReadDHT11Temperature 
     ,  ARDUINO_RUNNING_CORE);
 
@@ -79,7 +79,7 @@ void setup() {
     ,  "TaskReadDHT11Humidity"   
     ,  1024  
     ,  NULL
-    ,  1  
+    ,  SENSOR_TASKS_PRIORITY  
     ,  &task_handle_ReadDHT11Humidity
     ,  ARDUINO_RUNNING_CORE);
 
@@ -88,7 +88,7 @@ void setup() {
     ,  "TaskReadYL69SoilHumidity"   
     ,  1024  
     ,  NULL
-    ,  1  
+    ,  SENSOR_TASKS_PRIORITY  
     ,  &task_handle_ReadYL69SoilHumidity
     ,  ARDUINO_RUNNING_CORE);
 
@@ -97,7 +97,7 @@ void setup() {
     ,  "TaskActuatorIrrigator"   // A name just for humans
     ,  1024  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
-    ,  3  // Higher priority for actuator
+    ,  ACTUATOR_TASKS_PRIORITY
     ,  &task_handle_ActuatorIrrigator
     ,  ARDUINO_RUNNING_CORE);
 
