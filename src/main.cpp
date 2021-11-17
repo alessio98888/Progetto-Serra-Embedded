@@ -4,6 +4,7 @@
 #include <DHT_U.h>
 #include <DHT.h>
 #include "SGreenHouseConfig.h"
+#include "SUtils.h"
 
 /*--------------------------------------------------*/
 /*------------------ Task Handles ------------------*/
@@ -12,7 +13,9 @@ static TaskHandle_t task_handle_Coordinator = NULL;
 static TaskHandle_t task_handle_ReadDHT11Temperature = NULL;
 static TaskHandle_t task_handle_ReadDHT11Humidity = NULL;
 static TaskHandle_t task_handle_ReadYL69SoilHumidity = NULL;
+static TaskHandle_t task_handle_ReadLux = NULL;
 static TaskHandle_t task_handle_ActuatorIrrigator = NULL;
+static TaskHandle_t task_handle_ActuatorLights = NULL;
 static TaskHandle_t task_handle_ConnectWiFi = NULL;
 
 /*--------------------------------------------------*/
@@ -22,7 +25,9 @@ void TaskCoordinator ( void *pvParameters );
 void TaskReadDHT11Temperature( void *pvParameters );
 void TaskReadDHT11Humidity( void *pvParameters );
 void TaskReadYL69SoilHumidity( void *pvParameters );
+void TaskReadLux(void * pvParameters);
 void TaskActuatorIrrigator( void *pvParameters );
+void TaskActuatorLights( void *pvParameters );
 void TaskConnectWiFi( void *pvParameters );
 
 /*--------------------------------------------------*/
@@ -33,7 +38,6 @@ QueueHandle_t coordinator_queue = NULL;
 /*--------------------------------------------------*/
 /*----------------- Connectivity -------------------*/
 /*--------------------------------------------------*/
-
 WiFiClient client;
 
 /*--------------------------------------------------*/
@@ -42,13 +46,28 @@ WiFiClient client;
 // Create a DHT object called dht on the pin and with the sensor type you’ve specified previously
 DHT dht(DHT11PIN, DHT11);
 
+/*--------------------------------------------------*/
+/*--------------- Global Variables -----------------*/
+/*--------------------------------------------------*/
+bool lightsOn;
+
 // the setup function runs once when you press reset or power the board
 void setup() {
   
   // initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
 
+  lightsOn = false;
+
   coordinator_queue = xQueueCreate(coordinator_queue_len, sizeof(struct sensor_msg));
+
+  // Necessary initializations to perform sensor readings
+  dht.begin();
+  pinMode(YL69PIN, INPUT);
+
+  // Necessary initializations to access actuators
+  pinMode(irrigatorPIN, OUTPUT);
+  pinMode(lightsPIN, OUTPUT);
 
   xTaskCreatePinnedToCore(
     TaskCoordinator
@@ -96,20 +115,32 @@ void setup() {
     ,  ARDUINO_RUNNING_CORE);
 
    xTaskCreatePinnedToCore(
+    TaskReadLux
+    ,  "TaskReadLux"   
+    ,  1024  
+    ,  NULL
+    ,  SENSOR_TASKS_PRIORITY  
+    ,  &task_handle_ReadLux
+    ,  ARDUINO_RUNNING_CORE);
+
+   xTaskCreatePinnedToCore(
     TaskActuatorIrrigator
-    ,  "TaskActuatorIrrigator"   // A name just for humans
-    ,  1024  // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  "TaskActuatorIrrigator"  
+    ,  1024 
     ,  NULL
     ,  ACTUATOR_TASKS_PRIORITY
     ,  &task_handle_ActuatorIrrigator
     ,  ARDUINO_RUNNING_CORE);
 
-  // Necessary initializations to perform sensor readings
-  dht.begin();
-  pinMode(YL69PIN, INPUT);
-
-  // Necessary initializations to access actuators
-  pinMode(irrigatorPIN, OUTPUT);
+   xTaskCreatePinnedToCore(
+    TaskActuatorLights
+    ,  "TaskActuatorLights"  
+    ,  1024  
+    ,  NULL
+    ,  ACTUATOR_TASKS_PRIORITY
+    ,  &task_handle_ActuatorLights
+    ,  ARDUINO_RUNNING_CORE);
+  
 
   // Now the task scheduler, which takes over control of scheduling individual tasks, is automatically started.
 
@@ -134,6 +165,10 @@ void TaskCoordinator(void *pvParameters)
   struct sensor_msg sensor_reading_struct;
   for (;;) 
   {
+    #ifdef PRINT_COORDINATOR_QUEUE_USAGE
+      printQueueUsageInfo(coordinator_queue, "Coordinator queue");
+    #endif
+
     xQueueReceive(coordinator_queue, &sensor_reading_struct, portMAX_DELAY);
 
     switch (sensor_reading_struct.sensor)
@@ -181,7 +216,31 @@ void TaskCoordinator(void *pvParameters)
           vTaskResume(task_handle_ActuatorIrrigator);
         }
         break;
-        
+
+      case Sensor_Id_Lux:
+
+        #ifdef DEBUG_SENSORS
+          #ifdef SENSORS_VERBOSE_DEBUG
+            Serial.print("Lux: ");
+            Serial.println(sensor_reading_struct.sensor_reading);
+          #endif
+        #else
+          // **WIP**
+        #endif
+
+        // Lights actuation logic
+        if (sensor_reading_struct.sensor_reading < LightsActivationThreshold)
+        {
+          vTaskResume(task_handle_ActuatorLights); // Activate lights
+        }
+
+        if (sensor_reading_struct.sensor_reading > LightsDeactivationThreshold 
+          && lightsOn == true)
+        {
+          vTaskResume(task_handle_ActuatorLights); // Deactivate lights
+        }
+        break;
+
       default:
         break;
     }
@@ -189,9 +248,7 @@ void TaskCoordinator(void *pvParameters)
     vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);
 
     #ifdef PRINT_TASK_MEMORY_USAGE
-      // Print out remaining stack memory (in words of 4 bytes)
-      Serial.print("TaskCoordinator high water mark (words): ");
-      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+      printStackUsageInfo("TaskCoordinator");
     #endif
     
   }
@@ -228,9 +285,7 @@ void TaskReadDHT11Temperature(void *pvParameters)
     vTaskDelay(DHT11TemperaturePeriod / portTICK_PERIOD_MS);
 
     #ifdef PRINT_TASK_MEMORY_USAGE
-      // Print out remaining stack memory (in words of 4 bytes)
-      Serial.print("TaskReadDHT11Temperature high water mark (words): ");
-      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+      printStackUsageInfo("TaskReadDHT11Temperature");
     #endif
   }
 }
@@ -269,9 +324,7 @@ void TaskReadDHT11Humidity(void *pvParameters)
     vTaskDelay(DHT11HumidityPeriod / portTICK_PERIOD_MS);
 
     #ifdef PRINT_TASK_MEMORY_USAGE
-      // Print out remaining stack memory (in words of 4 bytes)
-      Serial.print("TaskReadDHT11Humidity high water mark (words): ");
-      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+      printStackUsageInfo("TaskReadDHT11Humidity");
     #endif
   }
 }
@@ -307,12 +360,47 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
     vTaskDelay(YL69SoilHumidityPeriod / portTICK_PERIOD_MS);
 
     #ifdef PRINT_TASK_MEMORY_USAGE
-      // Print out remaining stack memory (in words of 4 bytes)
-      Serial.print("TaskReadYL69SoilHumidity high water mark (words): ");
-      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+      printStackUsageInfo("TaskReadYL69SoilHumidity");
     #endif
   }
 }
+
+void TaskReadLux(void *pvParameters)
+{
+  (void) pvParameters;
+
+  /*
+    Reads the amount of ambient light.  
+  */
+  
+  struct sensor_msg sensor_reading_struct;
+  sensor_reading_struct.sensor = Sensor_Id_Lux;
+  
+  for (;;) 
+  {
+    #ifdef DEBUG_SENSORS
+      sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
+    #else
+      // actual sensor reading
+    #endif
+    
+    if( xQueueSend ( coordinator_queue , 
+                    (void *) &sensor_reading_struct , 
+                    0) // xTicksToWait: The maximum amount of time the task should block waiting for space to become available on the queue.
+                       // The call will return immediately if the queue is full and xTicksToWait is set to 0.
+                    != pdPASS )    
+    {
+      /* Failed to post the message */
+    }
+                    
+    vTaskDelay(LuxReadingPeriod / portTICK_PERIOD_MS);
+
+    #ifdef PRINT_TASK_MEMORY_USAGE
+      printStackUsageInfo("TaskReadLux");
+    #endif
+  }
+}
+
 
 void TaskActuatorIrrigator(void *pvParameters)
 {
@@ -320,7 +408,6 @@ void TaskActuatorIrrigator(void *pvParameters)
   
   /* 
     This task executes only when the Coordinator Task decides to do so (that is when soil humidity is under certain threshold).
-    This task executes only for a certain number of ticks, then it is suspended. 
   */
 
   // When first created, this task is suspended until it's resumed by the Coordinator
@@ -352,9 +439,53 @@ void TaskActuatorIrrigator(void *pvParameters)
     
 
     #ifdef PRINT_TASK_MEMORY_USAGE
-      // Print out remaining stack memory (in words of 4 bytes)
-      Serial.print("TaskActuatorIrrigator high water mark (words): ");
-      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+      printStackUsageInfo("TaskActuatorIrrigator");
+    #endif
+    
+    vTaskSuspend(NULL);
+  } 
+}
+
+void TaskActuatorLights(void *pvParameters)
+{
+  (void) pvParameters;
+  
+  /* 
+    This task executes only when the Coordinator Task decides to do so (that is when the amount of ambient light is under certain threshold).
+  */
+
+  // When first created, this task is suspended until it's resumed by the Coordinator
+  vTaskSuspend( NULL );
+  
+  
+  for(;;)
+  {  
+    #ifdef DEBUG_ACTUATORS
+      #ifdef ACTUATORS_VERBOSE_DEBUG
+        Serial.println("***Lights Activated***");
+      #endif
+    #else
+      digitalWrite(lightsPIN, HIGH);                  
+    #endif
+
+    lightsOn = true;
+
+    // The task will be unblocked after the specified amount of time (this represents the amount of time spent with the lights on)
+    vTaskDelay(LightsExecutionTime / portTICK_PERIOD_MS);
+
+    lightsOn = false;
+
+    #ifdef DEBUG_ACTUATORS
+      #ifdef ACTUATORS_VERBOSE_DEBUG
+        Serial.println("***Lights Suspended***");
+      #endif
+    #else
+      digitalWrite(lightsPIN, LOW);                    
+    #endif
+    
+
+    #ifdef PRINT_TASK_MEMORY_USAGE
+      printStackUsageInfo("TaskActuatorLights");
     #endif
     
     vTaskSuspend(NULL);
@@ -390,9 +521,7 @@ void TaskConnectWiFi( void *pvParameters )
     #endif
 
     #ifdef PRINT_TASK_MEMORY_USAGE
-      // Print out remaining stack memory (in words of 4 bytes)
-      Serial.print("TaskConnectWiFi high water mark (words): ");
-      Serial.println(uxTaskGetStackHighWaterMark(NULL));
+      printStackUsageInfo("TaskConnectWiFi");
     #endif
     
     vTaskSuspend(NULL);

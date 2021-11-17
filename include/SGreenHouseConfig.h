@@ -20,6 +20,9 @@
 
 #ifdef DEBUG
 
+  // Queues
+  //#define PRINT_COORDINATOR_QUEUE_USAGE
+  
   // Connectivity
   #define WiFi_CONNECTION_VERBOSE_DEBUG
   
@@ -33,7 +36,7 @@
 
   // Actuators
   #define DEBUG_ACTUATORS // Disables the actual activation of the actuator devices
-  #define ACTUATORS_VERBOSE_DEBUG // Enables verbose atuator output
+  #define ACTUATORS_VERBOSE_DEBUG // Enables verbose actuator output
 
   // Memory usage
   //#define PRINT_TASK_MEMORY_USAGE
@@ -48,6 +51,7 @@
 #define MQTT_PUBLISH_PRIORITY 2
 #define SENSOR_TASKS_PRIORITY 1
 #define ACTUATOR_TASKS_PRIORITY 5
+
 /*--------------------------------------------------*/
 /*----------- Connectivity configuration -----------*/
 /*--------------------------------------------------*/
@@ -61,11 +65,17 @@ const char* password = SECRET_PASS;
 // MQTT broker identifiers 
 const char* serverAddress = SECRET_SERVER_ADDR;
 const int port = SECRET_SERVER_PORT;
+
 /*--------------------------------------------------*/
 /*-------------- Temporary Defines -----------------*/
 /*--------------------------------------------------*/
 #define IrrigatorActivationThreshold 30 // in per cent 
 #define IrrigatorExecutionTime 5000
+
+#define LightsActivationThreshold 30
+#define LightsDeactivationThreshold 80
+#define LightsExecutionTime 5000
+
 /*--------------------------------------------------*/
 /*------------------ Pin Defines -------------------*/
 /*--------------------------------------------------*/
@@ -74,6 +84,8 @@ const int port = SECRET_SERVER_PORT;
 #define YL69PIN 22 // Analog soil humidity sensor
 // Actuators
 #define irrigatorPIN 32 // Controls the custom PCB in charge of the irrigator management
+#define lightsPIN 32 // To set properly
+
 /*--------------------------------------------------*/
 /*--------- Task Periods(in milliseconds) ----------*/
 /*--------------------------------------------------*/
@@ -81,6 +93,7 @@ const int port = SECRET_SERVER_PORT;
 #define DHT11TemperaturePeriod 5000 // 5 sec -- Temporary debug value
 #define DHT11HumidityPeriod 5000    // 5 sec -- Temporary debug value
 #define YL69SoilHumidityPeriod 5000 // 5 sec -- Temporary debug value
+#define LuxReadingPeriod 5000       // 5 sec -- Temporary debug value
 
 /*--------------------------------------------------*/
 /*----------- Coordinator Queue Config -------------*/
@@ -95,7 +108,7 @@ const int port = SECRET_SERVER_PORT;
 typedef float float32_t; //ESP32 boards use 32 bit for storing floats
 
 // *Enum definitions*
-enum sensor_id{Sensor_Id_DHT11Temperature, Sensor_Id_DHT11Humidity, Sensor_Id_YL69SoilHumidity};
+enum sensor_id{Sensor_Id_DHT11Temperature, Sensor_Id_DHT11Humidity, Sensor_Id_YL69SoilHumidity, Sensor_Id_Lux};
 
 // *Struct definitions*
 struct sensor_msg{
