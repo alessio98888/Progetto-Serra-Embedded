@@ -74,7 +74,6 @@ const int port = SECRET_SERVER_PORT;
 
 #define LightsActivationThreshold 30
 #define LightsDeactivationThreshold 80
-#define LightsExecutionTime 5000
 
 /*--------------------------------------------------*/
 /*------------------ Pin Defines -------------------*/

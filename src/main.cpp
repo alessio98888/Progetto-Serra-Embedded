@@ -229,12 +229,12 @@ void TaskCoordinator(void *pvParameters)
         #endif
 
         // Lights actuation logic
-        if (sensor_reading_struct.sensor_reading < LightsActivationThreshold)
+        if (sensor_reading_struct.sensor_reading < LightsActivationThreshold 
+          && lightsOn == false)
         {
           vTaskResume(task_handle_ActuatorLights); // Activate lights
         }
-
-        if (sensor_reading_struct.sensor_reading > LightsDeactivationThreshold 
+        else if (sensor_reading_struct.sensor_reading > LightsDeactivationThreshold 
           && lightsOn == true)
         {
           vTaskResume(task_handle_ActuatorLights); // Deactivate lights
@@ -470,8 +470,7 @@ void TaskActuatorLights(void *pvParameters)
 
     lightsOn = true;
 
-    // The task will be unblocked after the specified amount of time (this represents the amount of time spent with the lights on)
-    vTaskDelay(LightsExecutionTime / portTICK_PERIOD_MS);
+    vTaskSuspend( NULL );
 
     lightsOn = false;
 
