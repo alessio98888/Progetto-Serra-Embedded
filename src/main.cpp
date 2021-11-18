@@ -4,7 +4,10 @@
 #include <DHT_U.h>
 #include <DHT.h>
 #include "SGreenHouseConfig.h"
-#include "SUtils.h"
+
+#if DEBUG
+  #include "SUtils.h"
+#endif
 
 /*--------------------------------------------------*/
 /*------------------ Task Handles ------------------*/
@@ -165,7 +168,7 @@ void TaskCoordinator(void *pvParameters)
   struct sensor_msg sensor_reading_struct;
   for (;;) 
   {
-    #ifdef PRINT_COORDINATOR_QUEUE_USAGE
+    #if PRINT_COORDINATOR_QUEUE_USAGE
       printQueueUsageInfo(coordinator_queue, "Coordinator queue");
     #endif
 
@@ -175,8 +178,8 @@ void TaskCoordinator(void *pvParameters)
     {
       case Sensor_Id_DHT11Temperature:
         
-        #ifdef DEBUG_SENSORS
-          #ifdef SENSORS_VERBOSE_DEBUG
+        #if DEBUG_SENSORS
+          #if SENSORS_VERBOSE_DEBUG
             Serial.print("Temperature: ");                       
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
@@ -188,8 +191,8 @@ void TaskCoordinator(void *pvParameters)
       
       case Sensor_Id_DHT11Humidity:
         
-        #ifdef DEBUG_SENSORS
-          #ifdef SENSORS_VERBOSE_DEBUG
+        #if DEBUG_SENSORS
+          #if SENSORS_VERBOSE_DEBUG
             Serial.print("Air humidity: ");
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
@@ -201,8 +204,8 @@ void TaskCoordinator(void *pvParameters)
 
       case Sensor_Id_YL69SoilHumidity:
 
-        #ifdef DEBUG_SENSORS
-          #ifdef SENSORS_VERBOSE_DEBUG
+        #if DEBUG_SENSORS
+          #if SENSORS_VERBOSE_DEBUG
             Serial.print("Soil humidity: ");
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
@@ -219,8 +222,8 @@ void TaskCoordinator(void *pvParameters)
 
       case Sensor_Id_Lux:
 
-        #ifdef DEBUG_SENSORS
-          #ifdef SENSORS_VERBOSE_DEBUG
+        #if DEBUG_SENSORS
+          #if SENSORS_VERBOSE_DEBUG
             Serial.print("Lux: ");
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
@@ -247,7 +250,7 @@ void TaskCoordinator(void *pvParameters)
     
     vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);
 
-    #ifdef PRINT_TASK_MEMORY_USAGE
+    #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskCoordinator");
     #endif
     
@@ -267,7 +270,7 @@ void TaskReadDHT11Temperature(void *pvParameters)
   
   for (;;) 
   {
-    #ifdef DEBUG_SENSORS
+    #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
       sensor_reading_struct.sensor_reading = dht.readTemperature(); // actual sensor reading
@@ -284,7 +287,7 @@ void TaskReadDHT11Temperature(void *pvParameters)
                     
     vTaskDelay(DHT11TemperaturePeriod / portTICK_PERIOD_MS);
 
-    #ifdef PRINT_TASK_MEMORY_USAGE
+    #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadDHT11Temperature");
     #endif
   }
@@ -306,7 +309,7 @@ void TaskReadDHT11Humidity(void *pvParameters)
   for (;;) 
   {
     
-    #ifdef DEBUG_SENSORS
+    #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
       sensor_reading_struct.sensor_reading = dht.readHumidity(); // actual sensor reading
@@ -323,7 +326,7 @@ void TaskReadDHT11Humidity(void *pvParameters)
                     
     vTaskDelay(DHT11HumidityPeriod / portTICK_PERIOD_MS);
 
-    #ifdef PRINT_TASK_MEMORY_USAGE
+    #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadDHT11Humidity");
     #endif
   }
@@ -342,7 +345,7 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
   
   for (;;) 
   {
-    #ifdef DEBUG_SENSORS
+    #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
       sensor_reading_struct.sensor_reading = map(analogRead(YL69PIN), 1023, 0, 0, 100);  // actual sensor reading
@@ -359,7 +362,7 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
                     
     vTaskDelay(YL69SoilHumidityPeriod / portTICK_PERIOD_MS);
 
-    #ifdef PRINT_TASK_MEMORY_USAGE
+    #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadYL69SoilHumidity");
     #endif
   }
@@ -378,7 +381,7 @@ void TaskReadLux(void *pvParameters)
   
   for (;;) 
   {
-    #ifdef DEBUG_SENSORS
+    #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
       // actual sensor reading
@@ -395,7 +398,7 @@ void TaskReadLux(void *pvParameters)
                     
     vTaskDelay(LuxReadingPeriod / portTICK_PERIOD_MS);
 
-    #ifdef PRINT_TASK_MEMORY_USAGE
+    #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadLux");
     #endif
   }
@@ -416,8 +419,8 @@ void TaskActuatorIrrigator(void *pvParameters)
   
   for(;;)
   {  
-    #ifdef DEBUG_ACTUATORS
-      #ifdef ACTUATORS_VERBOSE_DEBUG
+    #if DEBUG_ACTUATORS
+      #if ACTUATORS_VERBOSE_DEBUG
         Serial.println("***Irrigator Activated***");
       #endif
     #else
@@ -429,8 +432,8 @@ void TaskActuatorIrrigator(void *pvParameters)
     vTaskDelay(IrrigatorExecutionTime / portTICK_PERIOD_MS);
 
 
-    #ifdef DEBUG_ACTUATORS
-      #ifdef ACTUATORS_VERBOSE_DEBUG
+    #if DEBUG_ACTUATORS
+      #if ACTUATORS_VERBOSE_DEBUG
         Serial.println("***Irrigator Suspended***");
       #endif
     #else
@@ -438,7 +441,7 @@ void TaskActuatorIrrigator(void *pvParameters)
     #endif
     
 
-    #ifdef PRINT_TASK_MEMORY_USAGE
+    #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskActuatorIrrigator");
     #endif
     
@@ -460,8 +463,8 @@ void TaskActuatorLights(void *pvParameters)
   
   for(;;)
   {  
-    #ifdef DEBUG_ACTUATORS
-      #ifdef ACTUATORS_VERBOSE_DEBUG
+    #if DEBUG_ACTUATORS
+      #if ACTUATORS_VERBOSE_DEBUG
         Serial.println("***Lights Activated***");
       #endif
     #else
@@ -474,8 +477,8 @@ void TaskActuatorLights(void *pvParameters)
 
     lightsOn = false;
 
-    #ifdef DEBUG_ACTUATORS
-      #ifdef ACTUATORS_VERBOSE_DEBUG
+    #if DEBUG_ACTUATORS
+      #if ACTUATORS_VERBOSE_DEBUG
         Serial.println("***Lights Suspended***");
       #endif
     #else
@@ -483,7 +486,7 @@ void TaskActuatorLights(void *pvParameters)
     #endif
     
 
-    #ifdef PRINT_TASK_MEMORY_USAGE
+    #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskActuatorLights");
     #endif
     
@@ -502,7 +505,7 @@ void TaskConnectWiFi( void *pvParameters )
 
     while ( status != WL_CONNECTED) { 
       
-      #ifdef WiFi_CONNECTION_VERBOSE_DEBUG
+      #if WiFi_CONNECTION_VERBOSE_DEBUG
         Serial.print("Attempting to connect to WEP network, SSID: ");
         Serial.println(ssid);
       #endif
@@ -514,12 +517,12 @@ void TaskConnectWiFi( void *pvParameters )
       vTaskDelay(ConnectionTimeDelay / portTICK_PERIOD_MS);
     }
 
-    #ifdef WiFi_CONNECTION_VERBOSE_DEBUG
+    #if WiFi_CONNECTION_VERBOSE_DEBUG
       Serial.print("SUCCESSFULLLY CONNECTED TO: ");
       Serial.println(ssid);
     #endif
 
-    #ifdef PRINT_TASK_MEMORY_USAGE
+    #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskConnectWiFi");
     #endif
     

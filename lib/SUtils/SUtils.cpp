@@ -8,11 +8,11 @@ void printQueueUsageInfo(QueueHandle_t xQueue, const char* readableQueueName)
     Serial.print(readableQueueName);
     Serial.println(" usage: ");
     
-    Serial.println("Number of messages waiting: ");
-    Serial.print(messagesWaiting);
+    Serial.print("Number of messages waiting: ");
+    Serial.println(messagesWaiting);
     
-    Serial.println("Max possible number of waiting messages: ");
-    Serial.print(uxQueueSpacesAvailable(xQueue) + messagesWaiting);
+    Serial.print("Max possible number of waiting messages: ");
+    Serial.println(uxQueueSpacesAvailable(xQueue) + messagesWaiting);
 }
 
 void printStackUsageInfo(const char* readableTaskName)

@@ -16,32 +16,33 @@
 /*--------------------------------------------------*/
 /*-------------------- DEBUG -----------------------*/
 /*--------------------------------------------------*/
-#define DEBUG
-
-#ifdef DEBUG
+/* 
+All the debug macros are defined as: "DEBUG && ( user_defined_flag )"
+so that if the debug mode is turned off, all the macros will
+have value zero.
+*/ 
+#define DEBUG                                1  // Enables the debug mode 
 
   // Queues
-  //#define PRINT_COORDINATOR_QUEUE_USAGE
+  #define PRINT_COORDINATOR_QUEUE_USAGE    DEBUG && ( 1 )    
   
   // Connectivity
-  #define WiFi_CONNECTION_VERBOSE_DEBUG
+  #define WiFi_CONNECTION_VERBOSE_DEBUG    DEBUG && ( 1 )    
   
   // Sensors
-  #define DEBUG_SENSORS // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
-  #define SENSORS_VERBOSE_DEBUG // Enables verbose sensor output
+  #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
+  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 1 ) // Enables verbose sensor output
 
-  #ifdef DEBUG_SENSORS
-    #define sensorSim() ((float32_t) random(0,100))
+  #if DEBUG_SENSORS
+    #define sensorSim() ((float32_t) random(0,100)) // This *SHOULD* be substituted with a regular function according to the MISRA C guidelines
   #endif
 
   // Actuators
-  #define DEBUG_ACTUATORS // Disables the actual activation of the actuator devices
-  #define ACTUATORS_VERBOSE_DEBUG // Enables verbose actuator output
+  #define DEBUG_ACTUATORS                  DEBUG && ( 1 ) // Disables the actual activation of the actuator devices
+  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 1 ) // Enables verbose actuator output
 
   // Memory usage
-  //#define PRINT_TASK_MEMORY_USAGE
-  
-#endif
+  #define PRINT_TASK_MEMORY_USAGE          DEBUG && ( 1 )     
 
 /*--------------------------------------------------*/
 /*----------- Task priority assignation ------------*/
