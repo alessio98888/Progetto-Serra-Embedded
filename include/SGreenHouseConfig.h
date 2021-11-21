@@ -24,14 +24,17 @@ have value zero.
 #define DEBUG                                1  // Enables the debug mode 
 
   // Queues
-  #define PRINT_COORDINATOR_QUEUE_USAGE    DEBUG && ( 1 )    
+  #define PRINT_COORDINATOR_QUEUE_USAGE    DEBUG && ( 0 )    
   
-  // Connectivity
+  // WiFi connectivity
   #define WiFi_CONNECTION_VERBOSE_DEBUG    DEBUG && ( 1 )    
   
+  // MQTT connectivity
+  #define MQTT_CONNECTION_VERBOSE_DEBUG    DEBUG && ( 1 )
+
   // Sensors
   #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
-  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 1 ) // Enables verbose sensor output
+  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 0 ) // Enables verbose sensor output
 
   #if DEBUG_SENSORS
     #define sensorSim() ((float32_t) random(0,100)) // This *SHOULD* be substituted with a regular function according to the MISRA C guidelines
@@ -39,16 +42,16 @@ have value zero.
 
   // Actuators
   #define DEBUG_ACTUATORS                  DEBUG && ( 1 ) // Disables the actual activation of the actuator devices
-  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 1 ) // Enables verbose actuator output
+  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 0 ) // Enables verbose actuator output
 
   // Memory usage
-  #define PRINT_TASK_MEMORY_USAGE          DEBUG && ( 1 )     
+  #define PRINT_TASK_MEMORY_USAGE          DEBUG && ( 0 )     
 
 /*--------------------------------------------------*/
 /*----------- Task priority assignation ------------*/
 /*--------------------------------------------------*/
 #define COORDINATOR_PRIORITY 2
-#define CONNECT_WIFI_PRIORITY 4
+#define CONNECT_PRIORITY 4
 #define MQTT_PUBLISH_PRIORITY 2
 #define SENSOR_TASKS_PRIORITY 1
 #define ACTUATOR_TASKS_PRIORITY 5
@@ -59,20 +62,53 @@ have value zero.
 // WiFi credentials
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PASS;
+// MQTT server
+const char* AIO_SERVER = SECRET_SERVER_ADDR;
+const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 
 // WiFi connection configuration
-#define ConnectionTimeDelay 5000
+#define WiFiConnectAttemptDelay 5000
 
-// MQTT broker identifiers 
-const char* serverAddress = SECRET_SERVER_ADDR;
-const int port = SECRET_SERVER_PORT;
+// MQTT connection
+#define MAX_CONNECTION_ATTEMPTS 3
+#define MQTTConnectAttemptDelay 3000
 
 /*--------------------------------------------------*/
-/*-------------- Temporary Defines -----------------*/
+/*------------------- MQTT topics ------------------*/
 /*--------------------------------------------------*/
+// Main topics
+#define MAIN_TOPIC        "garden/greenhouse"
+#define SENS_TOPIC        MAIN_TOPIC "/sensors"
+#define SETTINGS_TOPIC    MAIN_TOPIC "/settings"
+// Sensor topics
+#define SENS_TEMP_TOPIC        SENS_TOPIC "/f/temperature"
+#define SENS_AIR_HUM_TOPIC     SENS_TOPIC "/f/air_humidity"
+#define SENS_SOIL_HUM_TOPIC    SENS_TOPIC "/f/soil_humidity"
+#define SENS_LUX_TOPIC       SENS_TOPIC "/f/lux"
+// Actuator topics (Last activation logs?)
+
+// Settings topics
+// --Soil humidity thresholds
+#define SOIL_HUM_THR_TOPIC        SETT_TOPIC "/soil_humidity/tresholds"
+#define MIN_SOIL_HUM_THR_TOPIC    SOIL_HUM_THR_TOPIC "/min"
+#define MAX_SOIL_HUM_THR_TOPIC    SOIL_HUM_THR_TOPIC "/max"
+// --Light threshold
+#define LIGHTS_THR_TOPIC           SETT_TOPIC "/light/tresholds"
+#define ON_LIGHTS_THR_TOPIC       LIGHTS_THR_TOPIC "/turn_on"
+#define OFF_LIGHTS_THR_TOPIC       LIGHTS_THR_TOPIC "/turn_off"
+// --Irrigatior activation duration and delay between activations
+#define IRRIG_ACT_TOPIC           SETT_TOPIC "/irrigator/activation"
+#define IRRIG_ACT_DURATION_TOPIC  IRRIG_ACT_TOPIC "/duration"
+#define IRRIG_ACT_DELAY_TOPIC     IRRIG_ACT_TOPIC "/delay"
+
+/*--------------------------------------------------*/
+/*------------ Task specific parameters ------------*/
+/*--------------------------------------------------*/
+// Irrigator
 #define IrrigatorActivationThreshold 30 // in per cent 
 #define IrrigatorExecutionTime 5000
 
+// Lights
 #define LightsActivationThreshold 30
 #define LightsDeactivationThreshold 80
 
@@ -84,7 +120,7 @@ const int port = SECRET_SERVER_PORT;
 #define YL69PIN 22 // Analog soil humidity sensor
 // Actuators
 #define irrigatorPIN 32 // Controls the custom PCB in charge of the irrigator management
-#define lightsPIN 32 // To set properly
+#define lightsPIN 33 // Controls a relè designed to switch on and off 220V growlamp
 
 /*--------------------------------------------------*/
 /*--------- Task Periods(in milliseconds) ----------*/

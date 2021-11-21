@@ -4,6 +4,8 @@
 #include <DHT_U.h>
 #include <DHT.h>
 #include "SGreenHouseConfig.h"
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
 
 #if DEBUG
   #include "SUtils.h"
@@ -19,7 +21,7 @@ static TaskHandle_t task_handle_ReadYL69SoilHumidity = NULL;
 static TaskHandle_t task_handle_ReadLux = NULL;
 static TaskHandle_t task_handle_ActuatorIrrigator = NULL;
 static TaskHandle_t task_handle_ActuatorLights = NULL;
-static TaskHandle_t task_handle_ConnectWiFi = NULL;
+static TaskHandle_t task_handle_Connect = NULL;
 
 /*--------------------------------------------------*/
 /*----------- Task Function Prototypes -------------*/
@@ -31,7 +33,13 @@ void TaskReadYL69SoilHumidity( void *pvParameters );
 void TaskReadLux(void * pvParameters);
 void TaskActuatorIrrigator( void *pvParameters );
 void TaskActuatorLights( void *pvParameters );
-void TaskConnectWiFi( void *pvParameters );
+void TaskConnect( void *pvParameters );
+
+/*--------------------------------------------------*/
+/*-------------- Function prototypes----------------*/
+/*--------------------------------------------------*/
+void connectWiFi();
+void connectMQTT();
 
 /*--------------------------------------------------*/
 /*----------------- Queue Handles ------------------*/
@@ -41,7 +49,16 @@ QueueHandle_t coordinator_queue = NULL;
 /*--------------------------------------------------*/
 /*----------------- Connectivity -------------------*/
 /*--------------------------------------------------*/
+// WiFi
 WiFiClient client;
+// MQTT
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT); // client
+// --Publish
+Adafruit_MQTT_Publish MQTTpub_temp = Adafruit_MQTT_Publish(&mqtt, SENS_TEMP_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_air_hum = Adafruit_MQTT_Publish(&mqtt, SENS_AIR_HUM_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_soil_hum = Adafruit_MQTT_Publish(&mqtt, SENS_SOIL_HUM_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_lux = Adafruit_MQTT_Publish(&mqtt, SENS_LUX_TOPIC);
+// --Subscribe
 
 /*--------------------------------------------------*/
 /*------------ Digital sensors Config --------------*/
@@ -50,7 +67,7 @@ WiFiClient client;
 DHT dht(DHT11PIN, DHT11);
 
 /*--------------------------------------------------*/
-/*--------------- Global Variables -----------------*/
+/*----------------- Boolean flags ------------------*/
 /*--------------------------------------------------*/
 bool lightsOn;
 
@@ -82,12 +99,12 @@ void setup() {
     ,  ARDUINO_RUNNING_CORE);
 
   xTaskCreatePinnedToCore(
-    TaskConnectWiFi
-    ,  "TaskConnectWiFi"   
+    TaskConnect
+    ,  "TaskConnect"   
     ,  5024  
     ,  NULL
-    ,  CONNECT_WIFI_PRIORITY
-    ,  &task_handle_ConnectWiFi 
+    ,  CONNECT_PRIORITY
+    ,  &task_handle_Connect
     ,  ARDUINO_RUNNING_CORE);
   
   xTaskCreatePinnedToCore(
@@ -404,7 +421,6 @@ void TaskReadLux(void *pvParameters)
   }
 }
 
-
 void TaskActuatorIrrigator(void *pvParameters)
 {
   (void) pvParameters;
@@ -494,38 +510,87 @@ void TaskActuatorLights(void *pvParameters)
   } 
 }
 
-void TaskConnectWiFi( void *pvParameters )
+void TaskConnect( void *pvParameters )
 {
   (void) pvParameters;
 
 
   for(;;)
   {
-    int status = WL_DISCONNECTED; // set the known WiFi status to disconneted
-
-    while ( status != WL_CONNECTED) { 
-      
-      #if WiFi_CONNECTION_VERBOSE_DEBUG
-        Serial.print("Attempting to connect to WEP network, SSID: ");
-        Serial.println(ssid);
-      #endif
-
-      // start a connection attempt
-      status = WiFi.begin(ssid, password);
-      
-      // wait a set amount of time for connection:
-      vTaskDelay(ConnectionTimeDelay / portTICK_PERIOD_MS);
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      connectWiFi();
+      connectMQTT();
+    }
+    else if (!mqtt.connected())
+    {
+      connectMQTT();
     }
 
-    #if WiFi_CONNECTION_VERBOSE_DEBUG
-      Serial.print("SUCCESSFULLLY CONNECTED TO: ");
-      Serial.println(ssid);
-    #endif
-
-    #if PRINT_TASK_MEMORY_USAGE
-      printStackUsageInfo("TaskConnectWiFi");
-    #endif
-    
     vTaskSuspend(NULL);
   }
 }
+
+
+/*--------------------------------------------------*/
+/*------------------- Functions --------------------*/
+/*--------------------------------------------------*/
+
+void connectWiFi()
+{
+  wl_status_t status = WL_DISCONNECTED; // set the known WiFi status to disconneted
+
+  while ( status != WL_CONNECTED) 
+  { 
+    
+    #if WiFi_CONNECTION_VERBOSE_DEBUG
+      Serial.print("Attempting to connect to WEP network, SSID: ");
+      Serial.println(ssid);
+    #endif
+
+    // start a connection attempt
+    status = WiFi.begin(ssid, password);
+    
+    // wait a set amount of time for connection:
+    vTaskDelay(WiFiConnectAttemptDelay / portTICK_PERIOD_MS);
+  }
+
+  #if WiFi_CONNECTION_VERBOSE_DEBUG
+    Serial.print("SUCCESSFULLY CONNECTED TO: ");
+    Serial.println(ssid);
+  #endif
+
+  #if PRINT_TASK_MEMORY_USAGE
+    printStackUsageInfo("TaskConnectWiFi");
+  #endif
+}
+
+void connectMQTT()
+{
+    #if MQTT_CONNECTION_VERBOSE_DEBUG
+      Serial.println("Attempting to connect to the MQTT broker...");
+    #endif
+
+    uint8_t remaining_attempts = MAX_CONNECTION_ATTEMPTS;
+    int8_t ret;
+
+    while((ret = mqtt.connect()) != 0)
+    { 
+      remaining_attempts--;
+      #if MQTT_CONNECTION_VERBOSE_DEBUG
+        Serial.println(mqtt.connectErrorString(ret));
+      #endif
+      if (remaining_attempts == 0)
+        break;
+    
+      vTaskDelay(MQTTConnectAttemptDelay / portTICK_PERIOD_MS);
+    }
+
+    #if MQTT_CONNECTION_VERBOSE_DEBUG
+      if(ret == 0)
+        Serial.println("MQTT connected successfully!");
+      else
+        Serial.println("All MQTT connection attempts failed!");
+    #endif
+}
+
