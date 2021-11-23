@@ -23,7 +23,7 @@ static TaskHandle_t task_handle_ActuatorIrrigator = NULL;
 static TaskHandle_t task_handle_ActuatorLights = NULL;
 static TaskHandle_t task_handle_Connect = NULL;
 static TaskHandle_t task_handle_MQTTpublish = NULL;
-
+static TaskHandle_t task_handle_MQTTfetchSubscriptions = NULL;
 /*--------------------------------------------------*/
 /*----------- Task Function Prototypes -------------*/
 /*--------------------------------------------------*/
@@ -36,6 +36,7 @@ void TaskActuatorIrrigator( void *pvParameters );
 void TaskActuatorLights( void *pvParameters );
 void TaskConnect( void *pvParameters );
 void TaskMQTTpublish( void* pvParameters );
+void TaskMQTTfetchSubscriptions( void *pvParameters );
 
 /*--------------------------------------------------*/
 /*-------------- Function prototypes----------------*/
@@ -44,6 +45,7 @@ void connectWiFi();
 void connectMQTT();
 void MQTTQueueSend( sensor_msg sensor_reading_struct );
 bool MQTTPublishMessage( Adafruit_MQTT_Publish MQTT_topic_pub, float32_t msg);
+void subscriptions();
 
 /*--------------------------------------------------*/
 /*----------------- Queue Handles ------------------*/
@@ -64,7 +66,12 @@ Adafruit_MQTT_Publish MQTTpub_air_hum = Adafruit_MQTT_Publish(&mqtt, SENS_AIR_HU
 Adafruit_MQTT_Publish MQTTpub_soil_hum = Adafruit_MQTT_Publish(&mqtt, SENS_SOIL_HUM_TOPIC);
 Adafruit_MQTT_Publish MQTTpub_lux = Adafruit_MQTT_Publish(&mqtt, SENS_LUX_TOPIC);
 // --Subscribe
-
+Adafruit_MQTT_Subscribe MQTTsub_min_soil_hum_thr = Adafruit_MQTT_Subscribe(&mqtt, MIN_SOIL_HUM_THR_TOPIC);
+Adafruit_MQTT_Subscribe MQTTsub_max_soil_hum_thr = Adafruit_MQTT_Subscribe(&mqtt, MAX_SOIL_HUM_THR_TOPIC);
+Adafruit_MQTT_Subscribe MQTTsub_on_lights_thr = Adafruit_MQTT_Subscribe(&mqtt, ON_LIGHTS_THR_TOPIC);
+Adafruit_MQTT_Subscribe MQTTsub_off_lights_thr = Adafruit_MQTT_Subscribe(&mqtt, OFF_LIGHTS_THR_TOPIC);
+Adafruit_MQTT_Subscribe MQTTsub_irrig_act_duration = Adafruit_MQTT_Subscribe(&mqtt, IRRIG_ACT_DURATION_TOPIC);
+Adafruit_MQTT_Subscribe MQTTsub_irrig_act_delay = Adafruit_MQTT_Subscribe(&mqtt, IRRIG_ACT_DELAY_TOPIC);
 /*--------------------------------------------------*/
 /*------------ Digital sensors Config --------------*/
 /*--------------------------------------------------*/
@@ -76,11 +83,29 @@ DHT dht(DHT11PIN, DHT11);
 /*--------------------------------------------------*/
 bool lightsOn;
 
+/*--------------------------------------------------*/
+/*------------ MQTT Configurable parameters ------------*/
+/*--------------------------------------------------*/
+// Irrigator
+uint8_t IrrigatorActivationThreshold; // in per cent 
+uint32_t IrrigatorExecutionTime;
+
+// Lights
+uint32_t LightsActivationThreshold;
+uint32_t LightsDeactivationThreshold;
+
+
 // the setup function runs once when you press reset or power the board
 void setup() {
   
   // initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
+
+  // Setting Inizializations 
+  IrrigatorActivationThreshold = DEFAULT_IrrigatorActivationThreshold;
+  IrrigatorExecutionTime = DEFAULT_IrrigatorExecutionTime;
+  LightsActivationThreshold = DEFAULT_LightsActivationThreshold;
+  LightsDeactivationThreshold = DEFAULT_LightsDeactivationThreshold;
 
   lightsOn = false;
 
@@ -113,7 +138,16 @@ void setup() {
     ,  CONNECT_PRIORITY
     ,  &task_handle_Connect
     ,  ARDUINO_RUNNING_CORE);
-   
+
+   xTaskCreatePinnedToCore(
+    TaskMQTTfetchSubscriptions
+    ,  "TaskMQTTfetchSubscriptions"  
+    ,  2024  
+    ,  NULL
+    ,  MQTT_FETCH_SUBSCRIPTIONS_PRIORITY
+    ,  &task_handle_MQTTfetchSubscriptions
+    ,  ARDUINO_RUNNING_CORE);
+
   xTaskCreatePinnedToCore(
     TaskMQTTpublish
     ,  "TaskMQTTpublish"  
@@ -535,6 +569,9 @@ void TaskConnect( void *pvParameters )
     if (WiFi.status() != WL_CONNECTED)
     {
       connectWiFi();
+
+      subscriptions(); // must be called before mqtt.connect()
+
       connectMQTT();
     }
     else if (!mqtt.connected())
@@ -556,7 +593,7 @@ void TaskMQTTpublish( void* pvParameters )
   {
     if(mqtt.ping())
     {
-      for( int i = 0; i < MQTT_PUBLISH_PER_EXECUTION ; i++)
+      for( uint8_t i = 0; i < MQTT_PUBLISH_PER_EXECUTION ; i++)
       {
         if(xQueueReceive(MQTTpub_queue, &sensor_reading_struct, portMAX_DELAY) != pdPASS)
           break;
@@ -634,7 +671,7 @@ void connectMQTT()
 
     int8_t ret;
 
-    for ( int i = 0; i < MAX_CONNECTION_ATTEMPTS; i++ )
+    for ( uint8_t i = 0; i < MAX_CONNECTION_ATTEMPTS; i++ )
     { 
       ret = mqtt.connect();
       if(ret == 0)
@@ -682,7 +719,7 @@ void MQTTQueueSend( sensor_msg sensor_reading_struct )
 
 bool MQTTPublishMessage( Adafruit_MQTT_Publish MQTT_topic_pub, float32_t msg)
 {
-  for( int i = 0; i < MQTT_MAX_PUBLISHING_ATTEMPTS; i++ )
+  for( uint8_t i = 0; i < MQTT_MAX_PUBLISHING_ATTEMPTS; i++ )
   {  
     if(MQTT_topic_pub.publish(msg))
       return true;
@@ -694,4 +731,56 @@ bool MQTTPublishMessage( Adafruit_MQTT_Publish MQTT_topic_pub, float32_t msg)
     #endif
   }
   return false;
+}
+
+void TaskMQTTfetchSubscriptions( void *pvParameters )
+{
+  (void) pvParameters;
+
+  uint8_t i = 0;
+  Adafruit_MQTT_Subscribe *subscription;
+
+  for(;;)
+  {
+    if(mqtt.ping())
+    {
+      /* Stop reading subscriptions and wait for next cycle if:
+          - can't read a subscription in less than MILLIS_WAITING_READ_SUBSCRIPTION
+          - succesfully read MAX_SUBSCRIPTIONS_PER_EXECUTION number of subscriptions 
+      */
+      while ((subscription = mqtt.readSubscription(MQTT_MILLIS_WAITING_READ_SUBSCRIPTION))) 
+      {
+        if(MQTT_MAX_SUBSCRIPTIONS_PER_EXECUTION != -1 && i == MQTT_MAX_SUBSCRIPTIONS_PER_EXECUTION)
+          break;
+
+        if (subscription == &MQTTsub_irrig_act_duration) 
+        {
+          #if FETCH_SUBSCRIPTIONS_VERBOSE_DEBUG
+            Serial.print("SETTING FETCHED -> Irrigation Duration = ");
+            Serial.println((char *)MQTTsub_irrig_act_duration.lastread);
+          #endif
+          IrrigatorExecutionTime = atoi((char *)MQTTsub_irrig_act_duration.lastread);  // convert to a number
+        }
+
+        i++;
+      }
+    }
+    else
+    {
+      mqtt.disconnect();
+      vTaskResume(task_handle_Connect);
+    }
+
+    vTaskDelay(MQTTSubscribePeriod / portTICK_PERIOD_MS);
+  }
+}
+
+void subscriptions()
+{
+  mqtt.subscribe(&MQTTsub_max_soil_hum_thr);
+  mqtt.subscribe(&MQTTsub_min_soil_hum_thr);
+  mqtt.subscribe(&MQTTsub_on_lights_thr);
+  mqtt.subscribe(&MQTTsub_off_lights_thr);
+  mqtt.subscribe(&MQTTsub_irrig_act_delay);
+  mqtt.subscribe(&MQTTsub_irrig_act_duration);
 }

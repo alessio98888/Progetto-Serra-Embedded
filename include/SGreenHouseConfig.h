@@ -38,6 +38,9 @@ have value zero.
   // MQTT publish fail
   #define MQTT_PUBLISH_FAIL_VERBOSE_DEBUG  DEBUG && ( 1 )
 
+  // MQTT subscriptions
+  #define FETCH_SUBSCRIPTIONS_VERBOSE_DEBUG   DEBUG && ( 1 )
+
   // Sensors
   #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
   #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 0 ) // Enables verbose sensor output
@@ -59,6 +62,7 @@ have value zero.
 #define COORDINATOR_PRIORITY 2
 #define CONNECT_PRIORITY 4
 #define MQTT_PUBLISH_PRIORITY 2
+#define MQTT_FETCH_SUBSCRIPTIONS_PRIORITY 2
 #define SENSOR_TASKS_PRIORITY 1
 #define ACTUATOR_TASKS_PRIORITY 5
 
@@ -83,13 +87,17 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 #define MQTT_PUBLISH_PER_EXECUTION 5
 #define MQTT_MAX_PUBLISHING_ATTEMPTS 3
 
+// MQTT subscribe
+#define MQTT_MILLIS_WAITING_READ_SUBSCRIPTION 1000
+#define MQTT_MAX_SUBSCRIPTIONS_PER_EXECUTION -1 // -1 for unlimited number
+
 /*--------------------------------------------------*/
 /*------------------- MQTT topics ------------------*/
 /*--------------------------------------------------*/
 // Main topics
 #define MAIN_TOPIC        "garden/greenhouse"
 #define SENS_TOPIC        MAIN_TOPIC "/sensors"
-#define SETTINGS_TOPIC    MAIN_TOPIC "/settings"
+#define SETT_TOPIC    MAIN_TOPIC "/settings"
 // Sensor topics
 #define SENS_TEMP_TOPIC        SENS_TOPIC "/f/temperature"
 #define SENS_AIR_HUM_TOPIC     SENS_TOPIC "/f/air_humidity"
@@ -112,17 +120,6 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 #define IRRIG_ACT_DELAY_TOPIC     IRRIG_ACT_TOPIC "/delay"
 
 /*--------------------------------------------------*/
-/*------------ Task specific parameters ------------*/
-/*--------------------------------------------------*/
-// Irrigator
-#define IrrigatorActivationThreshold 30 // in per cent 
-#define IrrigatorExecutionTime 5000
-
-// Lights
-#define LightsActivationThreshold 30
-#define LightsDeactivationThreshold 80
-
-/*--------------------------------------------------*/
 /*------------------ Pin Defines -------------------*/
 /*--------------------------------------------------*/
 // Sensors
@@ -133,10 +130,19 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 #define lightsPIN 33 // Controls a relè designed to switch on and off 220V growlamp
 
 /*--------------------------------------------------*/
+/*------ MQTT Default configurable parameters ------*/
+/*--------------------------------------------------*/
+#define DEFAULT_IrrigatorActivationThreshold 30
+#define DEFAULT_IrrigatorExecutionTime 5000
+#define DEFAULT_LightsActivationThreshold 30
+#define DEFAULT_LightsDeactivationThreshold 80
+
+/*--------------------------------------------------*/
 /*--------- Task Periods(in milliseconds) ----------*/
 /*--------------------------------------------------*/
 #define CoordinatorPeriod 500
 #define MQTTPublishPeriod 2500
+#define MQTTSubscribePeriod 10000
 #define DHT11TemperaturePeriod 5000 // 5 sec -- Temporary debug value
 #define DHT11HumidityPeriod 5000    // 5 sec -- Temporary debug value
 #define YL69SoilHumidityPeriod 5000 // 5 sec -- Temporary debug value
