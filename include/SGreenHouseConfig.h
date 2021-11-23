@@ -32,6 +32,12 @@ have value zero.
   // MQTT connectivity
   #define MQTT_CONNECTION_VERBOSE_DEBUG    DEBUG && ( 1 )
 
+  // MQTT queue reset
+  #define MQTT_QUEUE_VERBOSE_REMOVE_DEBUG  DEBUG && ( 1 )
+
+  // MQTT publish fail
+  #define MQTT_PUBLISH_FAIL_VERBOSE_DEBUG  DEBUG && ( 1 )
+
   // Sensors
   #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
   #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 0 ) // Enables verbose sensor output
@@ -72,6 +78,10 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 // MQTT connection
 #define MAX_CONNECTION_ATTEMPTS 3
 #define MQTTConnectAttemptDelay 3000
+
+// MQTT publish
+#define MQTT_PUBLISH_PER_EXECUTION 5
+#define MQTT_MAX_PUBLISHING_ATTEMPTS 3
 
 /*--------------------------------------------------*/
 /*------------------- MQTT topics ------------------*/
@@ -126,15 +136,17 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 /*--------- Task Periods(in milliseconds) ----------*/
 /*--------------------------------------------------*/
 #define CoordinatorPeriod 500
+#define MQTTPublishPeriod 2500
 #define DHT11TemperaturePeriod 5000 // 5 sec -- Temporary debug value
 #define DHT11HumidityPeriod 5000    // 5 sec -- Temporary debug value
 #define YL69SoilHumidityPeriod 5000 // 5 sec -- Temporary debug value
 #define LuxReadingPeriod 5000       // 5 sec -- Temporary debug value
 
 /*--------------------------------------------------*/
-/*----------- Coordinator Queue Config -------------*/
+/*----------------- Queue Config -------------------*/
 /*--------------------------------------------------*/
 #define coordinator_queue_len 10 // Coordinator queue length
+#define MQTTpub_queue_len 10 
 
 /*--------------------------------------------------*/
 /*------- Type, enum and struct definitions --------*/

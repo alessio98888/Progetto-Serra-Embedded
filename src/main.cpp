@@ -22,6 +22,7 @@ static TaskHandle_t task_handle_ReadLux = NULL;
 static TaskHandle_t task_handle_ActuatorIrrigator = NULL;
 static TaskHandle_t task_handle_ActuatorLights = NULL;
 static TaskHandle_t task_handle_Connect = NULL;
+static TaskHandle_t task_handle_MQTTpublish = NULL;
 
 /*--------------------------------------------------*/
 /*----------- Task Function Prototypes -------------*/
@@ -34,17 +35,21 @@ void TaskReadLux(void * pvParameters);
 void TaskActuatorIrrigator( void *pvParameters );
 void TaskActuatorLights( void *pvParameters );
 void TaskConnect( void *pvParameters );
+void TaskMQTTpublish( void* pvParameters );
 
 /*--------------------------------------------------*/
 /*-------------- Function prototypes----------------*/
 /*--------------------------------------------------*/
 void connectWiFi();
 void connectMQTT();
+void MQTTQueueSend( sensor_msg sensor_reading_struct );
+bool MQTTPublishMessage( Adafruit_MQTT_Publish MQTT_topic_pub, float32_t msg);
 
 /*--------------------------------------------------*/
 /*----------------- Queue Handles ------------------*/
 /*--------------------------------------------------*/
 QueueHandle_t coordinator_queue = NULL;
+QueueHandle_t MQTTpub_queue = NULL;
 
 /*--------------------------------------------------*/
 /*----------------- Connectivity -------------------*/
@@ -79,7 +84,9 @@ void setup() {
 
   lightsOn = false;
 
+  // Queue creation
   coordinator_queue = xQueueCreate(coordinator_queue_len, sizeof(struct sensor_msg));
+  MQTTpub_queue = xQueueCreate(MQTTpub_queue_len, sizeof(struct sensor_msg));
 
   // Necessary initializations to perform sensor readings
   dht.begin();
@@ -106,7 +113,16 @@ void setup() {
     ,  CONNECT_PRIORITY
     ,  &task_handle_Connect
     ,  ARDUINO_RUNNING_CORE);
-  
+   
+  xTaskCreatePinnedToCore(
+    TaskMQTTpublish
+    ,  "TaskMQTTpublish"  
+    ,  2024  
+    ,  NULL
+    ,  MQTT_PUBLISH_PRIORITY
+    ,  &task_handle_MQTTpublish
+    ,  ARDUINO_RUNNING_CORE);
+
   xTaskCreatePinnedToCore(
     TaskReadDHT11Temperature
     ,  "TaskReadDHT11Temperature"   
@@ -125,7 +141,7 @@ void setup() {
     ,  &task_handle_ReadDHT11Humidity
     ,  ARDUINO_RUNNING_CORE);
 
-   xTaskCreatePinnedToCore(
+  xTaskCreatePinnedToCore(
     TaskReadYL69SoilHumidity
     ,  "TaskReadYL69SoilHumidity"   
     ,  1024  
@@ -134,7 +150,7 @@ void setup() {
     ,  &task_handle_ReadYL69SoilHumidity
     ,  ARDUINO_RUNNING_CORE);
 
-   xTaskCreatePinnedToCore(
+  xTaskCreatePinnedToCore(
     TaskReadLux
     ,  "TaskReadLux"   
     ,  1024  
@@ -143,7 +159,7 @@ void setup() {
     ,  &task_handle_ReadLux
     ,  ARDUINO_RUNNING_CORE);
 
-   xTaskCreatePinnedToCore(
+  xTaskCreatePinnedToCore(
     TaskActuatorIrrigator
     ,  "TaskActuatorIrrigator"  
     ,  1024 
@@ -152,7 +168,7 @@ void setup() {
     ,  &task_handle_ActuatorIrrigator
     ,  ARDUINO_RUNNING_CORE);
 
-   xTaskCreatePinnedToCore(
+  xTaskCreatePinnedToCore(
     TaskActuatorLights
     ,  "TaskActuatorLights"  
     ,  1024  
@@ -160,7 +176,6 @@ void setup() {
     ,  ACTUATOR_TASKS_PRIORITY
     ,  &task_handle_ActuatorLights
     ,  ARDUINO_RUNNING_CORE);
-  
 
   // Now the task scheduler, which takes over control of scheduling individual tasks, is automatically started.
 
@@ -200,10 +215,10 @@ void TaskCoordinator(void *pvParameters)
             Serial.print("Temperature: ");                       
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
-        #else
-          // **WIP**
         #endif
-        
+
+        MQTTQueueSend( sensor_reading_struct );
+
         break;
       
       case Sensor_Id_DHT11Humidity:
@@ -213,9 +228,9 @@ void TaskCoordinator(void *pvParameters)
             Serial.print("Air humidity: ");
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
-        #else
-          // **WIP**
         #endif
+
+        MQTTQueueSend( sensor_reading_struct );
         
         break;
 
@@ -226,9 +241,9 @@ void TaskCoordinator(void *pvParameters)
             Serial.print("Soil humidity: ");
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
-        #else
-          // **WIP**
         #endif
+
+        MQTTQueueSend( sensor_reading_struct );
 
         // Irrigator actuation logic
         if(sensor_reading_struct.sensor_reading < IrrigatorActivationThreshold)
@@ -244,9 +259,9 @@ void TaskCoordinator(void *pvParameters)
             Serial.print("Lux: ");
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
-        #else
-          // **WIP**
         #endif
+
+        MQTTQueueSend( sensor_reading_struct );
 
         // Lights actuation logic
         if (sensor_reading_struct.sensor_reading < LightsActivationThreshold 
@@ -531,7 +546,53 @@ void TaskConnect( void *pvParameters )
   }
 }
 
+void TaskMQTTpublish( void* pvParameters )
+{
+  (void) pvParameters;
 
+  struct sensor_msg sensor_reading_struct;
+
+  for (;;)
+  {
+    if(mqtt.ping())
+    {
+      for( int i = 0; i < MQTT_PUBLISH_PER_EXECUTION ; i++)
+      {
+        if(xQueueReceive(MQTTpub_queue, &sensor_reading_struct, portMAX_DELAY) != pdPASS)
+          break;
+
+        switch (sensor_reading_struct.sensor)
+        {
+          case Sensor_Id_DHT11Temperature:
+            MQTTPublishMessage(MQTTpub_temp, sensor_reading_struct.sensor_reading);
+            break;
+          
+          case Sensor_Id_DHT11Humidity:
+            MQTTPublishMessage(MQTTpub_air_hum, sensor_reading_struct.sensor_reading);
+            break;
+          
+          case Sensor_Id_YL69SoilHumidity:
+            MQTTPublishMessage(MQTTpub_soil_hum, sensor_reading_struct.sensor_reading);
+            break;
+
+          case Sensor_Id_Lux:
+            MQTTPublishMessage(MQTTpub_lux, sensor_reading_struct.sensor_reading);
+            break;
+
+          default:
+            break;
+        }
+      }
+    }
+    else
+    {
+      mqtt.disconnect();
+      vTaskResume(task_handle_Connect);
+    }
+
+    vTaskDelay(MQTTPublishPeriod / portTICK_PERIOD_MS);
+  }
+}
 /*--------------------------------------------------*/
 /*------------------- Functions --------------------*/
 /*--------------------------------------------------*/
@@ -571,17 +632,17 @@ void connectMQTT()
       Serial.println("Attempting to connect to the MQTT broker...");
     #endif
 
-    uint8_t remaining_attempts = MAX_CONNECTION_ATTEMPTS;
     int8_t ret;
 
-    while((ret = mqtt.connect()) != 0)
+    for ( int i = 0; i < MAX_CONNECTION_ATTEMPTS; i++ )
     { 
-      remaining_attempts--;
+      ret = mqtt.connect();
+      if(ret == 0)
+        break;
+        
       #if MQTT_CONNECTION_VERBOSE_DEBUG
         Serial.println(mqtt.connectErrorString(ret));
       #endif
-      if (remaining_attempts == 0)
-        break;
     
       vTaskDelay(MQTTConnectAttemptDelay / portTICK_PERIOD_MS);
     }
@@ -594,3 +655,43 @@ void connectMQTT()
     #endif
 }
 
+void MQTTQueueSend( sensor_msg sensor_reading_struct )
+{
+  if (uxQueueSpacesAvailable( MQTTpub_queue ) == 0 )
+   {
+     sensor_msg scrapped_msg;
+
+     xQueueReceive(MQTTpub_queue, &scrapped_msg, portMAX_DELAY);
+
+     #if MQTT_QUEUE_VERBOSE_REMOVE_DEBUG
+      Serial.println("Eliminated an old message from the MQTT queue!");
+      Serial.print("Number of available spaces after the elimination: ");
+      Serial.println(uxQueueSpacesAvailable( MQTTpub_queue ));
+     #endif
+   }
+
+  if( xQueueSend ( MQTTpub_queue , 
+          (void *) &sensor_reading_struct , 
+          0) // xTicksToWait: The maximum amount of time the task should block waiting for space to become available on the queue.
+              // The call will return immediately if the queue is full and xTicksToWait is set to 0.
+          != pdPASS )    
+  {
+    /* Failed to post the message */
+  }
+}
+
+bool MQTTPublishMessage( Adafruit_MQTT_Publish MQTT_topic_pub, float32_t msg)
+{
+  for( int i = 0; i < MQTT_MAX_PUBLISHING_ATTEMPTS; i++ )
+  {  
+    if(MQTT_topic_pub.publish(msg))
+      return true;
+
+    #if MQTT_PUBLISH_FAIL_VERBOSE_DEBUG
+      Serial.print("Failed attempt number "); 
+      Serial.print(i+1);
+      Serial.println(" to publish a message!");
+    #endif
+  }
+  return false;
+}
