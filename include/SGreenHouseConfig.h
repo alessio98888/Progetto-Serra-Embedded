@@ -1,7 +1,14 @@
 #ifndef S_GREENHOUSE_CONFIG_H /*== INCLUDE ==*/
 #define S_GREENHOUSE_CONFIG_H /*=== GUARD ===*/
 
+#include <Arduino.h>
+#include <WiFi.h>
+#include <Adafruit_Sensor.h>
+#include <DHT_U.h>
+#include <DHT.h>
 #include "secrets.h"
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
 
 #if CONFIG_FREERTOS_UNICORE
   #define ARDUINO_RUNNING_CORE 0
@@ -39,11 +46,20 @@ have value zero.
   #define MQTT_PUBLISH_FAIL_VERBOSE_DEBUG  DEBUG && ( 1 )
 
   // MQTT subscriptions
-  #define FETCH_SUBSCRIPTIONS_VERBOSE_DEBUG   DEBUG && ( 1 )
+  #define MQTT_FETCH_SUB_VERBOSE_DEBUG     DEBUG && ( 1 )
+
+  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+    #define printFetchedValue(var_name, updated_variable) {\
+                                                            Serial.print("Fetched new values for ");\
+                                                            Serial.print(var_name);\
+                                                            Serial.print(": ");\
+                                                            Serial.println(updated_variable);\
+                                                          }
+  #endif
 
   // Sensors
   #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
-  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 0 ) // Enables verbose sensor output
+  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 1 ) // Enables verbose sensor output
 
   #if DEBUG_SENSORS
     #define sensorSim() ((float32_t) random(0,100)) // This *SHOULD* be substituted with a regular function according to the MISRA C guidelines
@@ -88,8 +104,7 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 #define MQTT_MAX_PUBLISHING_ATTEMPTS 3
 
 // MQTT subscribe
-#define MQTT_MILLIS_WAITING_READ_SUBSCRIPTION 1000
-#define MQTT_MAX_SUBSCRIPTIONS_PER_EXECUTION -1 // -1 for unlimited number
+#define MQTT_SUBSCRIPTION_READING_TIMEOUT 1000
 
 /*--------------------------------------------------*/
 /*------------------- MQTT topics ------------------*/
@@ -100,20 +115,20 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 #define SETT_TOPIC    MAIN_TOPIC "/settings"
 // Sensor topics
 #define SENS_TEMP_TOPIC        SENS_TOPIC "/f/temperature"
-#define SENS_AIR_HUM_TOPIC     SENS_TOPIC "/f/air_humidity"
-#define SENS_SOIL_HUM_TOPIC    SENS_TOPIC "/f/soil_humidity"
+#define SENS_AIR_HUM_TOPIC     SENS_TOPIC "/f/airhumidity"
+#define SENS_SOIL_HUM_TOPIC    SENS_TOPIC "/f/soilhumidity"
 #define SENS_LUX_TOPIC       SENS_TOPIC "/f/lux"
 // Actuator topics (Last activation logs?)
 
 // Settings topics
 // --Soil humidity thresholds
-#define SOIL_HUM_THR_TOPIC        SETT_TOPIC "/soil_humidity/tresholds"
+#define SOIL_HUM_THR_TOPIC        SETT_TOPIC "/soilhumidity/tresholds"
 #define MIN_SOIL_HUM_THR_TOPIC    SOIL_HUM_THR_TOPIC "/min"
 #define MAX_SOIL_HUM_THR_TOPIC    SOIL_HUM_THR_TOPIC "/max"
 // --Light threshold
 #define LIGHTS_THR_TOPIC           SETT_TOPIC "/light/tresholds"
-#define ON_LIGHTS_THR_TOPIC       LIGHTS_THR_TOPIC "/turn_on"
-#define OFF_LIGHTS_THR_TOPIC       LIGHTS_THR_TOPIC "/turn_off"
+#define ON_LIGHTS_THR_TOPIC       LIGHTS_THR_TOPIC "/on"
+#define OFF_LIGHTS_THR_TOPIC       LIGHTS_THR_TOPIC "/off"
 // --Irrigatior activation duration and delay between activations
 #define IRRIG_ACT_TOPIC           SETT_TOPIC "/irrigator/activation"
 #define IRRIG_ACT_DURATION_TOPIC  IRRIG_ACT_TOPIC "/duration"
@@ -168,6 +183,11 @@ enum sensor_id{Sensor_Id_DHT11Temperature, Sensor_Id_DHT11Humidity, Sensor_Id_YL
 struct sensor_msg{
   enum sensor_id sensor;
   float32_t sensor_reading;
+};
+
+struct MQTT_subscription{
+  Adafruit_MQTT_Subscribe sub_obj;
+  void (*callback) (uint32_t);
 };
 
 #endif // S_GREENHOUSE_CONFIG_H -- End of the header file
