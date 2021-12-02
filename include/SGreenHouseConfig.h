@@ -40,10 +40,10 @@ have value zero.
   #define MQTT_CONNECTION_VERBOSE_DEBUG    DEBUG && ( 1 )
 
   // MQTT queue reset
-  #define MQTT_QUEUE_VERBOSE_REMOVE_DEBUG  DEBUG && ( 1 )
+  #define MQTT_QUEUE_VERBOSE_REMOVE_DEBUG  DEBUG && ( 0 )
 
   // MQTT publish fail
-  #define MQTT_PUBLISH_FAIL_VERBOSE_DEBUG  DEBUG && ( 1 )
+  #define MQTT_PUBLISH_FAIL_VERBOSE_DEBUG  DEBUG && ( 0 )
 
   // MQTT subscriptions
   #define MQTT_FETCH_SUB_VERBOSE_DEBUG     DEBUG && ( 1 )
@@ -67,7 +67,7 @@ have value zero.
 
   // Actuators
   #define DEBUG_ACTUATORS                  DEBUG && ( 1 ) // Disables the actual activation of the actuator devices
-  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 0 ) // Enables verbose actuator output
+  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 1 ) // Enables verbose actuator output
 
   // Memory usage
   #define PRINT_TASK_MEMORY_USAGE          DEBUG && ( 0 )     
@@ -149,6 +149,7 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 /*--------------------------------------------------*/
 #define DEFAULT_IrrigatorActivationThreshold 30
 #define DEFAULT_IrrigatorExecutionTime 5000
+#define DEFAULT_IrrigatorBetweenActivationsDelay 10000
 #define DEFAULT_LightsActivationThreshold 30
 #define DEFAULT_LightsDeactivationThreshold 80
 

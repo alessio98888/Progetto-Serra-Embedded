@@ -125,6 +125,7 @@ void setup() {
   IrrigatorExecutionTime = DEFAULT_IrrigatorExecutionTime;
   LightsActivationThreshold = DEFAULT_LightsActivationThreshold;
   LightsDeactivationThreshold = DEFAULT_LightsDeactivationThreshold;
+  IrrigatorBetweenActivationsDelay = DEFAULT_IrrigatorBetweenActivationsDelay;
 
   lightsOn = false;
 
@@ -499,8 +500,7 @@ void TaskActuatorIrrigator(void *pvParameters)
 
   // When first created, this task is suspended until it's resumed by the Coordinator
   vTaskSuspend( NULL );
-  
-  
+
   for(;;)
   {  
     #if DEBUG_ACTUATORS
@@ -529,6 +529,8 @@ void TaskActuatorIrrigator(void *pvParameters)
       printStackUsageInfo("TaskActuatorIrrigator");
     #endif
     
+    // This delay makes sure the task won't be reactivated before a certain amount of time
+    vTaskDelay( IrrigatorBetweenActivationsDelay / portTICK_PERIOD_MS );
     vTaskSuspend(NULL);
   } 
 }
