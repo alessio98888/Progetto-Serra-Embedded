@@ -1,3 +1,15 @@
 {
-    "C_Cpp.errorSquiggles": "Enabled"
+    "C_Cpp.errorSquiggles": "Enabled",
+    "files.associations": {
+        "array": "cpp",
+        "string": "cpp",
+        "sstream": "cpp",
+        "cinttypes": "cpp",
+        "cstdlib": "cpp",
+        "system_error": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp"
+    }
 }

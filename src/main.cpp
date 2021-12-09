@@ -39,16 +39,27 @@ void connectMQTT();
 void MQTTQueueSend( sensor_msg sensor_reading_struct );
 bool MQTTPublishMessage( Adafruit_MQTT_Publish MQTT_topic_pub, float32_t msg);
 void MQTTSetSubscriptions();
-//--Callback functions (subscriptions)
-void MQTT_uint32_callbackCore(uint32_t *variable_ptr, uint32_t data);
-void MQTTIrrigActuationDuration_callback(uint32_t data);
-void MQTTIrrigActuationDelay_callback(uint32_t data);
 
-void MQTT_uint8_callbackCore(uint8_t *variable_ptr, uint32_t data);
-void MQTTMinSoilHumThr_callback(uint32_t data);
-void MQTTMaxSoilHumThr_callback(uint32_t data);
-void MQTTOnLightThr_callback(uint32_t data);
-void MQTTOffLightThr_callback(uint32_t data);
+//--Callback functions (subscriptions)
+bool MQTT_uint32_callbackCore(uint32_t *variable_ptr, char* str, uint16_t len);
+void MQTTIrrigActuationDuration_callback(char *str, uint16_t len);
+void MQTTIrrigActuationDelay_callback(char *str, uint16_t len);
+void MQTTOnLightThr_callback(char *str, uint16_t len);
+void MQTTOffLightThr_callback(char *str, uint16_t len);
+
+bool MQTT_uint8_callbackCore(uint8_t *variable_ptr, char* str, uint16_t len);
+void MQTTMinSoilHumThr_callback(char *str, uint16_t len);
+void MQTTMaxSoilHumThr_callback(char *str, uint16_t len);
+void MQTTMinAirHumThr_callback(char* str, uint16_t len);
+void MQTTMaxAirHumThr_callback(char* str, uint16_t len);
+
+bool MQTT_int8_callbackCore(int8_t *variable_ptr, char* str, uint16_t len);
+void MQTTMaxTempThr_callback(char *str, uint16_t len);
+void MQTTMinTempThr_callback(char *str, uint16_t len);
+
+// Safe conversion functions
+bool SafeStrToInt32(char *str, uint16_t len, int32_t *int_value);
+bool SafeStrToUInt32(char *str, uint16_t len, uint32_t *uint_value);
 
 /*--------------------------------------------------*/
 /*----------------- Queue Handles ------------------*/
@@ -65,16 +76,31 @@ WiFiClient client;
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT); // client
 
 // --Publish
+// ----Sensors publish
 Adafruit_MQTT_Publish MQTTpub_temp = Adafruit_MQTT_Publish(&mqtt, SENS_TEMP_TOPIC);
 Adafruit_MQTT_Publish MQTTpub_air_hum = Adafruit_MQTT_Publish(&mqtt, SENS_AIR_HUM_TOPIC);
 Adafruit_MQTT_Publish MQTTpub_soil_hum = Adafruit_MQTT_Publish(&mqtt, SENS_SOIL_HUM_TOPIC);
 Adafruit_MQTT_Publish MQTTpub_lux = Adafruit_MQTT_Publish(&mqtt, SENS_LUX_TOPIC);
 
-// --Subscribe
-// ----
+// ----Settings publish
+Adafruit_MQTT_Publish MQTTpub_valid_min_soil_hum_thr = Adafruit_MQTT_Publish(&mqtt, MIN_SOIL_HUM_THR_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_valid_max_soil_hum_thr = Adafruit_MQTT_Publish(&mqtt, MAX_SOIL_HUM_THR_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_valid_min_air_hum_thr = Adafruit_MQTT_Publish(&mqtt, MIN_AIR_HUM_THR_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_valid_max_air_hum_thr = Adafruit_MQTT_Publish(&mqtt, MAX_AIR_HUM_THR_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_valid_min_temp_thr = Adafruit_MQTT_Publish(&mqtt, MIN_TEMP_THR_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_valid_max_temp_thr = Adafruit_MQTT_Publish(&mqtt, MAX_TEMP_THR_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_valid_on_lights_thr = Adafruit_MQTT_Publish(&mqtt, ON_LIGHTS_THR_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_valid_off_lights_thr = Adafruit_MQTT_Publish(&mqtt, OFF_LIGHTS_THR_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_valid_irrig_act_duration = Adafruit_MQTT_Publish(&mqtt, IRRIG_ACT_DURATION_TOPIC);
+Adafruit_MQTT_Publish MQTTpub_valid_irrig_act_delay = Adafruit_MQTT_Publish(&mqtt, IRRIG_ACT_DELAY_TOPIC);
 
+// --Subscribe
 MQTT_subscription MQTTsub_min_soil_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MIN_SOIL_HUM_THR_TOPIC), MQTTMinSoilHumThr_callback };
 MQTT_subscription MQTTsub_max_soil_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MAX_SOIL_HUM_THR_TOPIC), MQTTMaxSoilHumThr_callback };
+MQTT_subscription MQTTsub_min_air_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MIN_AIR_HUM_THR_TOPIC), MQTTMinAirHumThr_callback };
+MQTT_subscription MQTTsub_max_air_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MAX_AIR_HUM_THR_TOPIC), MQTTMaxAirHumThr_callback };
+MQTT_subscription MQTTsub_min_temp_thr = { Adafruit_MQTT_Subscribe(&mqtt, MIN_TEMP_THR_TOPIC), MQTTMinTempThr_callback };
+MQTT_subscription MQTTsub_max_temp_thr = { Adafruit_MQTT_Subscribe(&mqtt, MAX_TEMP_THR_TOPIC), MQTTMaxTempThr_callback };
 MQTT_subscription MQTTsub_on_lights_thr = { Adafruit_MQTT_Subscribe(&mqtt, ON_LIGHTS_THR_TOPIC), MQTTOnLightThr_callback };
 MQTT_subscription MQTTsub_off_lights_thr = { Adafruit_MQTT_Subscribe(&mqtt, OFF_LIGHTS_THR_TOPIC), MQTTOffLightThr_callback };
 MQTT_subscription MQTTsub_irrig_act_duration = { Adafruit_MQTT_Subscribe(&mqtt, IRRIG_ACT_DURATION_TOPIC), MQTTIrrigActuationDuration_callback };
@@ -83,24 +109,39 @@ MQTT_subscription MQTTsub_irrig_act_delay = { Adafruit_MQTT_Subscribe(&mqtt, IRR
 MQTT_subscription *MQTT_subscription_array[MAXSUBSCRIPTIONS] = {
   &MQTTsub_min_soil_hum_thr,
   &MQTTsub_max_soil_hum_thr,
+  &MQTTsub_min_air_hum_thr,
+  &MQTTsub_max_air_hum_thr,
+  &MQTTsub_min_temp_thr,
+  &MQTTsub_max_temp_thr,
   &MQTTsub_on_lights_thr,
   &MQTTsub_off_lights_thr,
   &MQTTsub_irrig_act_duration,
   &MQTTsub_irrig_act_delay
 };
 
+
 /*--------------------------------------------------*/
 /*---------- MQTT Configurable parameters ----------*/
 /*--------------------------------------------------*/
+// Soil humidity
+uint8_t IrrigatorActivationThreshold = DEFAULT_IrrigatorActivationThreshold; // in per cent
+uint8_t MaxSoilHumidityThreshold = DEFAULT_MaxSoilHumidityThreshold; 
+
+// Air humidity
+uint8_t MinAirHumidityThreshold = DEFAULT_MinAirHumidityThreshold; 
+uint8_t MaxAirHumidityThreshold = DEFAULT_MaxAirHumidityThreshold; 
+
 // Irrigator
-uint8_t IrrigatorActivationThreshold; // in per cent
-uint8_t MaxHumidityThreshold; 
-uint32_t IrrigatorExecutionTime;
-uint32_t IrrigatorBetweenActivationsDelay;
+uint32_t IrrigatorExecutionTime = DEFAULT_IrrigatorExecutionTime;
+uint32_t IrrigatorBetweenActivationsDelay = DEFAULT_IrrigatorBetweenActivationsDelay;
 
 // Lights
-uint32_t LightsActivationThreshold;
-uint32_t LightsDeactivationThreshold;
+uint32_t LightsActivationThreshold = DEFAULT_LightsActivationThreshold;
+uint32_t LightsDeactivationThreshold = DEFAULT_LightsDeactivationThreshold;
+
+// Temperature
+int8_t MinTemperatureThreshold = DEFAULT_MinTemperatureThreshold;
+int8_t MaxTemperatureThreshold = DEFAULT_MaxTemperatureThreshold;
 
 /*--------------------------------------------------*/
 /*------------ Digital sensors Config --------------*/
@@ -119,13 +160,6 @@ void setup() {
   
   // initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
-
-  // Setting Inizializations 
-  IrrigatorActivationThreshold = DEFAULT_IrrigatorActivationThreshold;
-  IrrigatorExecutionTime = DEFAULT_IrrigatorExecutionTime;
-  LightsActivationThreshold = DEFAULT_LightsActivationThreshold;
-  LightsDeactivationThreshold = DEFAULT_LightsDeactivationThreshold;
-  IrrigatorBetweenActivationsDelay = DEFAULT_IrrigatorBetweenActivationsDelay;
 
   lightsOn = false;
 
@@ -790,62 +824,349 @@ void MQTTSetSubscriptions()
 
 // ====Callbacks====
 
-// ==== uint32_t =====
-void MQTT_uint32_callbackCore(uint32_t *variable_ptr, uint32_t data)
+// == uint32_t ==
+bool MQTT_uint32_callbackCore(uint32_t *variable_ptr, char* str, uint16_t len)
 {
-  *variable_ptr = data;
+  uint32_t uint32_value;
+
+  if(SafeStrToUInt32(str, len, &uint32_value))
+  {
+    *variable_ptr = uint32_value;
+    return true;
+  }
+  return false;
 }
 
-void MQTTIrrigActuationDuration_callback(uint32_t data)
+void MQTTIrrigActuationDuration_callback(char* str, uint16_t len)
 {
-  MQTT_uint32_callbackCore( &IrrigatorExecutionTime, data );
+  bool success;
+  success = MQTT_uint32_callbackCore(&IrrigatorExecutionTime, str, len);
+
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    printFetchedValue("IrrigatorExecutionTime", IrrigatorExecutionTime);
+    if(success)
+    {
+      printFetchedValue("IrrigatorExecutionTime", IrrigatorExecutionTime);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an unvalid value for: IrrigatorExecutionTime__***");
+      MQTTpub_valid_irrig_act_duration.publish(IrrigatorExecutionTime);
+    }
+  #else
+    if(!success)
+      MQTTpub_valid_irrig_act_duration.publish(IrrigatorExecutionTime);
   #endif
 }
 
-void MQTTIrrigActuationDelay_callback(uint32_t data)
+void MQTTIrrigActuationDelay_callback(char* str, uint16_t len)
 {
-  MQTT_uint32_callbackCore( &IrrigatorBetweenActivationsDelay, data );
+  bool success;
+  success = MQTT_uint32_callbackCore(&IrrigatorBetweenActivationsDelay, str, len);
+
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    printFetchedValue("IrrigatorBetweenActivationsDelay", IrrigatorBetweenActivationsDelay);
+    if(success)
+    {
+      printFetchedValue("IrrigatorBetweenActivationsDelay", IrrigatorBetweenActivationsDelay);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an unvalid value for: IrrigatorBetweenActivationsDelay__***");
+      MQTTpub_valid_irrig_act_delay.publish(IrrigatorBetweenActivationsDelay);
+    }
+  #else
+    if(!success)
+      MQTTpub_valid_irrig_act_delay.publish(IrrigatorBetweenActivationsDelay);
   #endif
 }
 
-void MQTTOnLightThr_callback(uint32_t data)
+void MQTTOnLightThr_callback(char* str, uint16_t len)
 {
-  MQTT_uint32_callbackCore( &LightsActivationThreshold, data );
+  bool success;
+  success = MQTT_uint32_callbackCore(&LightsActivationThreshold, str, len);
+
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    printFetchedValue("LightsActivationThreshold", LightsActivationThreshold);
+    if(success)
+    {
+      printFetchedValue("LightsActivationThreshold", LightsActivationThreshold);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an unvalid value for: LightsActivationThreshold__***");
+      MQTTpub_valid_on_lights_thr.publish(LightsActivationThreshold);
+    }
+  #else
+    if(!success)
+      MQTTpub_valid_on_lights_thr.publish(LightsActivationThreshold);
   #endif
 }
 
-void MQTTOffLightThr_callback(uint32_t data)
+void MQTTOffLightThr_callback(char* str, uint16_t len)
 {
-  MQTT_uint32_callbackCore( &LightsDeactivationThreshold, data );
+  bool success;
+  success = MQTT_uint32_callbackCore(&LightsDeactivationThreshold, str, len);
+
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    printFetchedValue("LightsDeactivationThreshold", LightsDeactivationThreshold);
+    if(success)
+    {
+      printFetchedValue("LightsDeactivationThreshold", LightsDeactivationThreshold);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an unvalid value for: LightsDeactivationThreshold__***");
+      MQTTpub_valid_off_lights_thr.publish(LightsDeactivationThreshold);
+    }
+  #else
+    if(!success)
+      MQTTpub_valid_off_lights_thr.publish(LightsDeactivationThreshold);
   #endif
 }
 
-// ==== uint8_t =====
-void MQTT_uint8_callbackCore(uint8_t *variable_ptr, uint32_t data)
+// == uint8_t ==
+bool MQTT_uint8_callbackCore(uint8_t *variable_ptr, char* str, uint16_t len)
 {
-  *variable_ptr = (uint8_t) data;
+  uint32_t uint32_value;
+
+  if(SafeStrToUInt32(str, len, &uint32_value))
+  {
+    if(uint32_value <= UINT8_MAX)
+    {
+      *variable_ptr = (uint8_t) uint32_value;
+      return true;
+    }
+  }
+  return false;
 }
 
-void MQTTMaxSoilHumThr_callback(uint32_t data)
+void MQTTMaxSoilHumThr_callback(char* str, uint16_t len)
 {
-  MQTT_uint8_callbackCore(&MaxHumidityThreshold, data);
+  bool success;
+  success = MQTT_uint8_callbackCore(&MaxSoilHumidityThreshold, str, len);
+  
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    printFetchedValue("MaxHumidityThreshold", MaxHumidityThreshold);
+    if(success)
+    {
+      printFetchedValue("MaxSoilHumidityThreshold", MaxSoilHumidityThreshold);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an unvalid value for: MaxSoilHumidityThreshold__***");
+      MQTTpub_valid_max_soil_hum_thr.publish(MaxSoilHumidityThreshold);
+    }
+  #else
+    if(!success)
+      MQTTpub_valid_max_soil_hum_thr.publish(MaxSoilHumidityThreshold);
   #endif
 }
 
-void MQTTMinSoilHumThr_callback(uint32_t data)
+void MQTTMinSoilHumThr_callback(char* str, uint16_t len)
 {
-  MQTT_uint8_callbackCore(&IrrigatorActivationThreshold, data);
+  bool success;
+  success = MQTT_uint8_callbackCore(&IrrigatorActivationThreshold, str, len);
+  
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    printFetchedValue("IrrigatorActivationThreshold", IrrigatorActivationThreshold);
+    if(success)
+    {
+      printFetchedValue("IrrigatorActivationThreshold", IrrigatorActivationThreshold);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an unvalid value for: IrrigatorActivationThreshold__***");
+      MQTTpub_valid_min_soil_hum_thr.publish(IrrigatorActivationThreshold);
+    }
+  #else
+    if(!success)
+      MQTTpub_valid_min_soil_hum_thr.publish(IrrigatorActivationThreshold);
   #endif
+}
+
+void MQTTMaxAirHumThr_callback(char* str, uint16_t len)
+{
+  bool success;
+  success = MQTT_uint8_callbackCore(&MaxAirHumidityThreshold, str, len);
+  
+  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+    if(success)
+    {
+      printFetchedValue("MaxAirHumidityThreshold", MaxAirHumidityThreshold);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an unvalid value for: MaxAirHumidityThreshold__***");
+      MQTTpub_valid_max_air_hum_thr.publish(MaxAirHumidityThreshold);
+    }
+  #else
+    if(!success)
+      MQTTpub_valid_max_air_hum_thr.publish(MaxAirHumidityThreshold);
+  #endif
+}
+
+void MQTTMinAirHumThr_callback(char* str, uint16_t len)
+{
+  bool success;
+  success = MQTT_uint8_callbackCore(&MinAirHumidityThreshold, str, len);
+  
+  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+    if(success)
+    {
+      printFetchedValue("MinAirHumidityThreshold", MinAirHumidityThreshold);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an unvalid value for: MinAirHumidityThreshold__***");
+      MQTTpub_valid_min_air_hum_thr.publish(MinAirHumidityThreshold);
+    }
+  #else
+    if(!success)
+      MQTTpub_valid_min_air_hum_thr.publish(MinAirHumidityThreshold);
+  #endif
+}
+// == int8_t ==
+bool MQTT_int8_callbackCore(int8_t *variable_ptr, char* str, uint16_t len)
+{
+  int32_t int32_value;
+
+  if(SafeStrToInt32(str, len, &int32_value))
+  {
+    if( INT8_MIN <= int32_value && int32_value <= INT8_MAX )
+    {
+      *variable_ptr = (int8_t) int32_value;
+      return true;
+    }
+  }
+  return false;
+}
+
+void MQTTMaxTempThr_callback(char *str, uint16_t len)
+{
+  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+    bool success;
+    success = MQTT_int8_callbackCore(&MaxTemperatureThreshold, str, len);
+
+    if(success)
+    {
+      printFetchedValue("MaxTemperatureThreshold", MaxTemperatureThreshold);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an unvalid value for: MaxTemperatureThreshold__***");
+      MQTTpub_valid_max_temp_thr.publish(MaxTemperatureThreshold);
+    }
+  #else
+    if(!success)
+      MQTTpub_valid_max_temp_thr.publish(MaxTemperatureThreshold);
+  #endif
+}
+
+void MQTTMinTempThr_callback(char *str, uint16_t len)
+{
+  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+    bool success;
+    success = MQTT_int8_callbackCore(&MinTemperatureThreshold, str, len);
+
+    if(success)
+    {
+      printFetchedValue("MinTemperatureThreshold", MinTemperatureThreshold);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an unvalid value for: MinTemperatureThreshold__***");
+      MQTTpub_valid_min_temp_thr.publish(MinTemperatureThreshold);
+    }
+  #else
+    if(!success)
+      MQTTpub_valid_min_temp_thr.publish(MinTemperatureThreshold);
+  #endif
+}
+
+// ==== Safe conversions ====
+
+bool __isStrIntZero(char* str, uint16_t len){
+
+  for ( uint16_t i = 0; i < len; i++ )
+  {
+
+    if (isSpace(str[i]))
+      continue;
+    else if (isDigit(str[i]) && str[i] == '0')
+      return true;
+    else
+      return false;
+  
+  }
+
+  return false;
+}
+
+bool SafeStrToInt32(char *str, uint16_t len, int32_t *int_value)
+{
+  /*
+    The function returns true if it successfully managed to
+    parse the string to an int32_t value (The obtained integer 
+    value can be retrieved through the referenced int_value 
+    parameter)
+
+    On ESP32 the long long int type is made of two words (8 bytes,
+    64 bits).
+  */
+
+  int64_t int64_value = strtoll(str, nullptr, 10);
+
+  /* 
+    Checking if the number is between the INT32 extremes
+    guarantees it to be a 32 bit integer.
+  */
+  if ( INT32_MIN <= int64_value && int64_value <= INT32_MAX )
+  {
+    *int_value = (int32_t) int64_value;
+    /*
+      In case the value is zero, it is necessary to check
+      if the value represents an actual integer zero or 
+      it represents an input non convertible into an integer
+    */
+    if ( (*int_value) == 0 )
+    {   
+        return __isStrIntZero(str, len);
+    }
+    else
+      return true;
+  }
+  else
+    return false;
+}
+
+bool SafeStrToUInt32(char *str, uint16_t len, uint32_t *uint_value)
+{
+  /*
+    The function returns true if it successfully managed to
+    parse the string to an uint32_t value (The obtained integer 
+    value can be retrieved through the referenced uint_value 
+    parameter)
+
+    On ESP32 the unsigned long long int type is made of two words 
+    (8 bytes, 64 bits).
+  */
+  uint64_t uint64_value = strtoull(str, nullptr, 10);
+
+  /* 
+    Checking if the number is under the UINT32 maximum
+    value guarantees it to be a 32 bit unsigned int.
+  */
+  if ( uint64_value <= UINT32_MAX )
+  {
+    *uint_value = (uint32_t) strtoull(str, nullptr, 10);
+    
+    /*
+      In case the value is zero, it is necessary to check
+      if the value represents an actual integer zero or 
+      it represents an input non convertible into an integer
+    */
+    if ( (*uint_value) == 0 )
+    { 
+        return __isStrIntZero(str, len);
+    }
+    else
+      return true;
+  }
+  else
+    return false;
 }

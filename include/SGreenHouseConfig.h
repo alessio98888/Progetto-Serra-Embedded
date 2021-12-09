@@ -50,7 +50,7 @@ have value zero.
 
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
     #define printFetchedValue(var_name, updated_variable) {\
-                                                            Serial.print("Fetched new values for ");\
+                                                            Serial.print("Fetched a new value for ");\
                                                             Serial.print(var_name);\
                                                             Serial.print(": ");\
                                                             Serial.println(updated_variable);\
@@ -59,7 +59,7 @@ have value zero.
 
   // Sensors
   #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
-  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 1 ) // Enables verbose sensor output
+  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 0 ) // Enables verbose sensor output
 
   #if DEBUG_SENSORS
     #define sensorSim() ((float32_t) random(0,100)) // This *SHOULD* be substituted with a regular function according to the MISRA C guidelines
@@ -67,7 +67,7 @@ have value zero.
 
   // Actuators
   #define DEBUG_ACTUATORS                  DEBUG && ( 1 ) // Disables the actual activation of the actuator devices
-  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 1 ) // Enables verbose actuator output
+  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 0 ) // Enables verbose actuator output
 
   // Memory usage
   #define PRINT_TASK_MEMORY_USAGE          DEBUG && ( 0 )     
@@ -112,24 +112,37 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 // Main topics
 #define MAIN_TOPIC        "garden/greenhouse"
 #define SENS_TOPIC        MAIN_TOPIC "/sensors"
-#define SETT_TOPIC    MAIN_TOPIC "/settings"
+#define SETT_TOPIC        MAIN_TOPIC "/settings"
 // Sensor topics
 #define SENS_TEMP_TOPIC        SENS_TOPIC "/f/temperature"
 #define SENS_AIR_HUM_TOPIC     SENS_TOPIC "/f/airhumidity"
 #define SENS_SOIL_HUM_TOPIC    SENS_TOPIC "/f/soilhumidity"
-#define SENS_LUX_TOPIC       SENS_TOPIC "/f/lux"
+#define SENS_LUX_TOPIC         SENS_TOPIC "/f/lux"
 // Actuator topics (Last activation logs?)
 
 // Settings topics
-// --Soil humidity thresholds
-#define SOIL_HUM_THR_TOPIC        SETT_TOPIC "/soilhumidity/tresholds"
+
+// --Thresholds
+#define THRESHOLDS_TOPIC SETT_TOPIC "/thresholds"
+// ----Soil humidity thresholds
+#define SOIL_HUM_THR_TOPIC        THRESHOLDS_TOPIC "/soilhumidity"
 #define MIN_SOIL_HUM_THR_TOPIC    SOIL_HUM_THR_TOPIC "/min"
 #define MAX_SOIL_HUM_THR_TOPIC    SOIL_HUM_THR_TOPIC "/max"
-// --Light threshold
-#define LIGHTS_THR_TOPIC           SETT_TOPIC "/light/tresholds"
+// ----Air humidity thresholds
+#define AIR_HUM_THR_TOPIC         THRESHOLDS_TOPIC "/airhumidity"
+#define MIN_AIR_HUM_THR_TOPIC     AIR_HUM_THR_TOPIC "/min"
+#define MAX_AIR_HUM_THR_TOPIC     AIR_HUM_THR_TOPIC "/max"
+// ----Temperature thresholds
+#define TEMPERATURE_THR_TOPIC     THRESHOLDS_TOPIC "/temperature"
+#define MIN_TEMP_THR_TOPIC        TEMPERATURE_THR_TOPIC "/min"
+#define MAX_TEMP_THR_TOPIC        TEMPERATURE_THR_TOPIC "/max"
+// ----Light thresholds
+#define LIGHTS_THR_TOPIC          THRESHOLDS_TOPIC "/lights"
 #define ON_LIGHTS_THR_TOPIC       LIGHTS_THR_TOPIC "/on"
-#define OFF_LIGHTS_THR_TOPIC       LIGHTS_THR_TOPIC "/off"
-// --Irrigatior activation duration and delay between activations
+#define OFF_LIGHTS_THR_TOPIC      LIGHTS_THR_TOPIC "/off"
+
+// --Other settings
+// ----Irrigatior activation duration and delay between activations
 #define IRRIG_ACT_TOPIC           SETT_TOPIC "/irrigator/activation"
 #define IRRIG_ACT_DURATION_TOPIC  IRRIG_ACT_TOPIC "/duration"
 #define IRRIG_ACT_DELAY_TOPIC     IRRIG_ACT_TOPIC "/delay"
@@ -142,12 +155,17 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 #define YL69PIN 22 // Analog soil humidity sensor
 // Actuators
 #define irrigatorPIN 32 // Controls the custom PCB in charge of the irrigator management
-#define lightsPIN 33 // Controls a relè designed to switch on and off 220V growlamp
+#define lightsPIN 33 // Controls a relè designed to switch on and off a 220V growlamp
 
 /*--------------------------------------------------*/
 /*------ MQTT Default configurable parameters ------*/
 /*--------------------------------------------------*/
 #define DEFAULT_IrrigatorActivationThreshold 30
+#define DEFAULT_MaxSoilHumidityThreshold 80
+#define DEFAULT_MinAirHumidityThreshold 10
+#define DEFAULT_MaxAirHumidityThreshold 80
+#define DEFAULT_MinTemperatureThreshold 15
+#define DEFAULT_MaxTemperatureThreshold 45
 #define DEFAULT_IrrigatorExecutionTime 5000
 #define DEFAULT_IrrigatorBetweenActivationsDelay 10000
 #define DEFAULT_LightsActivationThreshold 30
@@ -188,7 +206,7 @@ struct sensor_msg{
 
 struct MQTT_subscription{
   Adafruit_MQTT_Subscribe sub_obj;
-  void (*callback) (uint32_t);
+  void (*callback) (char*, uint16_t);
 };
 
 #endif // S_GREENHOUSE_CONFIG_H -- End of the header file
