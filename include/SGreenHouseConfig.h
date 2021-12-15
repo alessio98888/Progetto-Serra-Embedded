@@ -67,7 +67,7 @@ have value zero.
 
   // Actuators
   #define DEBUG_ACTUATORS                  DEBUG && ( 1 ) // Disables the actual activation of the actuator devices
-  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 0 ) // Enables verbose actuator output
+  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 1 ) // Enables verbose actuator output
 
   // Memory usage
   #define PRINT_TASK_MEMORY_USAGE          DEBUG && ( 0 )     
@@ -156,6 +156,10 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 // Actuators
 #define irrigatorPIN 32 // Controls the custom PCB in charge of the irrigator management
 #define lightsPIN 33 // Controls a relè designed to switch on and off a 220V growlamp
+// LED signals
+#define connectionLED 18 // ON as long as the system doensn't recognize connectivity issues
+#define irrigatorLED 17 // ON as long as the irrigator is active
+#define greenhouseStateWarningLED 15 // ON if the greenhouse is in a bad stategreenhouse
 
 /*--------------------------------------------------*/
 /*------ MQTT Default configurable parameters ------*/
@@ -189,6 +193,11 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 #define MQTTpub_queue_len 10 
 
 /*--------------------------------------------------*/
+/*-------------- Lights toggle delay----------------*/
+/*--------------------------------------------------*/
+#define lightsToggleDelay 5000
+
+/*--------------------------------------------------*/
 /*------- Type, enum and struct definitions --------*/
 /*--------------------------------------------------*/
 // *Type definitions*
@@ -196,7 +205,13 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 typedef float float32_t; //ESP32 boards use 32 bit for storing floats
 
 // *Enum definitions*
-enum sensor_id{Sensor_Id_DHT11Temperature, Sensor_Id_DHT11Humidity, Sensor_Id_YL69SoilHumidity, Sensor_Id_Lux};
+enum sensor_id{
+  Sensor_Id_DHT11Temperature, 
+  Sensor_Id_DHT11Humidity, 
+  Sensor_Id_YL69SoilHumidity, 
+  Sensor_Id_Lux,
+  Amount_of_sensor_ids
+  };
 
 // *Struct definitions*
 struct sensor_msg{

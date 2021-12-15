@@ -175,6 +175,11 @@ void setup() {
   pinMode(irrigatorPIN, OUTPUT);
   pinMode(lightsPIN, OUTPUT);
 
+  // Signal LEDs initializations
+  pinMode(connectionLED, OUTPUT);
+  pinMode(irrigatorLED, OUTPUT);
+  pinMode(greenhouseStateWarningLED, OUTPUT);
+
   xTaskCreatePinnedToCore(
     TaskCoordinator
     ,  "TaskCoordinator"   // A name just for humans
@@ -285,7 +290,16 @@ void TaskCoordinator(void *pvParameters)
   /*
     Task Coordinator
   */
+
   struct sensor_msg sensor_reading_struct;
+
+  // True if greenhouseStateWarningLED is ON, false otherwise
+  bool ghStateWarningLED_ON = false; 
+  
+  // Array of flags signaling the state detected by each sensor during
+  // their last read, true if it was a bad state, false otherwise 
+  bool BadSensorStateArray[Amount_of_sensor_ids] = { false }; 
+
   for (;;) 
   {
     #if PRINT_COORDINATOR_QUEUE_USAGE
@@ -304,11 +318,18 @@ void TaskCoordinator(void *pvParameters)
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
         #endif
+        
+        // If a bad state is detected
+        if ( sensor_reading_struct.sensor_reading < MinTemperatureThreshold ||\
+             sensor_reading_struct.sensor_reading > MaxTemperatureThreshold   )
+        {
+          BadSensorStateArray[Sensor_Id_DHT11Temperature] = true;
+        } // else if the bad state is over
+        else if ( BadSensorStateArray[Sensor_Id_DHT11Temperature] )
+          BadSensorStateArray[Sensor_Id_DHT11Temperature] = false;
+        
+        break;  
 
-        MQTTQueueSend( sensor_reading_struct );
-
-        break;
-      
       case Sensor_Id_DHT11Humidity:
         
         #if DEBUG_SENSORS
@@ -317,6 +338,14 @@ void TaskCoordinator(void *pvParameters)
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
         #endif
+
+        if ( sensor_reading_struct.sensor_reading < MinAirHumidityThreshold ||\
+              sensor_reading_struct.sensor_reading > MaxAirHumidityThreshold   )
+        {
+          BadSensorStateArray[Sensor_Id_DHT11Humidity] = true;
+        }
+        else if ( BadSensorStateArray[Sensor_Id_DHT11Humidity] )
+          BadSensorStateArray[Sensor_Id_DHT11Humidity] = false;
 
         MQTTQueueSend( sensor_reading_struct );
         
@@ -338,6 +367,15 @@ void TaskCoordinator(void *pvParameters)
         {
           vTaskResume(task_handle_ActuatorIrrigator);
         }
+
+        if ( sensor_reading_struct.sensor_reading < IrrigatorActivationThreshold ||\
+              sensor_reading_struct.sensor_reading > MaxSoilHumidityThreshold       )
+        {
+          BadSensorStateArray[Sensor_Id_YL69SoilHumidity] = true;
+        }
+        else if ( BadSensorStateArray[Sensor_Id_YL69SoilHumidity] )
+          BadSensorStateArray[Sensor_Id_YL69SoilHumidity] = false;
+      
         break;
 
       case Sensor_Id_Lux:
@@ -366,6 +404,42 @@ void TaskCoordinator(void *pvParameters)
 
       default:
         break;
+    }
+
+    /* 
+      Update the status of the led signaling possible dangerous states of
+      the greenhouse.
+
+      If the led is off, check if there is at least a sensor which detected
+      a bad state.
+    */
+    if ( !ghStateWarningLED_ON )
+    {
+      for ( uint8_t i = 0; i < Amount_of_sensor_ids; i++ )
+      {
+        if ( BadSensorStateArray[i] )
+        {
+          ghStateWarningLED_ON = true;
+          digitalWrite(greenhouseStateWarningLED, HIGH);
+          break;
+        }
+      }
+    }
+    else // If the led is already ON check if there are still sensors detecting
+    {    // a bad state, then, if there are no more bad states, turn it OFF.
+      bool bad_state = false; // 
+
+      for ( uint8_t i = 0; i < Amount_of_sensor_ids; i++ )
+      {
+        if ( BadSensorStateArray[i] )
+          bad_state = true;
+      }
+
+      if ( !bad_state )
+      {
+        ghStateWarningLED_ON = false;
+        digitalWrite(greenhouseStateWarningLED, LOW);
+      }
     }
     
     vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);
@@ -537,6 +611,8 @@ void TaskActuatorIrrigator(void *pvParameters)
 
   for(;;)
   {  
+    digitalWrite(irrigatorLED, HIGH);
+
     #if DEBUG_ACTUATORS
       #if ACTUATORS_VERBOSE_DEBUG
         Serial.println("***Irrigator Activated***");
@@ -563,6 +639,7 @@ void TaskActuatorIrrigator(void *pvParameters)
       printStackUsageInfo("TaskActuatorIrrigator");
     #endif
     
+    digitalWrite(irrigatorLED, LOW);
     // This delay makes sure the task won't be reactivated before a certain amount of time
     vTaskDelay( IrrigatorBetweenActivationsDelay / portTICK_PERIOD_MS );
     vTaskSuspend(NULL);
@@ -593,6 +670,8 @@ void TaskActuatorLights(void *pvParameters)
 
     lightsOn = true;
 
+    // Wait some time before allowing to turn off the lights
+    vTaskDelay(lightsToggleDelay / portTICK_PERIOD_MS);
     vTaskSuspend( NULL );
 
     lightsOn = false;
@@ -610,6 +689,8 @@ void TaskActuatorLights(void *pvParameters)
       printStackUsageInfo("TaskActuatorLights");
     #endif
     
+    // Wait some time before allowing to turn the lights back on
+    vTaskDelay(lightsToggleDelay / portTICK_PERIOD_MS);
     vTaskSuspend(NULL);
   } 
 }
@@ -618,14 +699,15 @@ void TaskConnect( void *pvParameters )
 {
   (void) pvParameters;
 
+  MQTTSetSubscriptions(); // must be called before mqtt.connect()
 
   for(;;)
   {
+    digitalWrite(connectionLED, LOW);
+
     if (WiFi.status() != WL_CONNECTED)
     {
       connectWiFi();
-
-      MQTTSetSubscriptions(); // must be called before mqtt.connect()
 
       connectMQTT();
     }
@@ -633,6 +715,9 @@ void TaskConnect( void *pvParameters )
     {
       connectMQTT();
     }
+
+    if (mqtt.connected())
+      digitalWrite(connectionLED, HIGH);
 
     vTaskSuspend(NULL);
   }
