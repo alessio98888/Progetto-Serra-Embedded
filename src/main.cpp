@@ -17,6 +17,7 @@ static TaskHandle_t task_handle_ActuatorLights = NULL;
 static TaskHandle_t task_handle_Connect = NULL;
 static TaskHandle_t task_handle_MQTTpublish = NULL;
 static TaskHandle_t task_handle_MQTTfetchSubscriptions = NULL;
+
 /*--------------------------------------------------*/
 /*----------- Task Function Prototypes -------------*/
 /*--------------------------------------------------*/
@@ -34,11 +35,93 @@ void TaskMQTTfetchSubscriptions( void *pvParameters );
 /*--------------------------------------------------*/
 /*-------------- Function prototypes----------------*/
 /*--------------------------------------------------*/
-void connectWiFi();
-void connectMQTT();
+void connectWiFi(void);
+void connectMQTT(void);
 void MQTTQueueSend( sensor_msg sensor_reading_struct );
 bool MQTTPublishMessage( Adafruit_MQTT_Publish MQTT_topic_pub, float32_t msg);
-void MQTTSetSubscriptions();
+void MQTTSetSubscriptions(void);
+void MQTTFetchSubscriptions(const char* preferencesScopeName, int16_t timeout);
+// Protocol functions for the updating thresholds from MQTT
+
+bool validThresholdsSetMax(intmax_t min, intmax_t max);
+bool validThresholdsSetMin(intmax_t max, intmax_t min);
+void init_setting_manage_structs(void);
+
+// == uint8_t ==
+void setThreshold_uint8_t(uint8_t* new_thr, 
+                          const char* thr_readable_name,
+                          uint8_t* effective_thr,
+                          const char* other_thr_readable_name,
+                          uint8_t* other_thr,
+                          uint8_t* pending_thr, 
+                          bool* pending_thr_flag, 
+                          uint8_t* pending_other_thr, 
+                          bool* pending_other_thr_flag, 
+                          const char* threshold_topic_key,
+                          const char* other_threshold_topic_key,
+                          bool (*validThresholdsFun) (intmax_t other_thr, intmax_t thr));
+
+void setMaxThreshold_uint8_t(struct threshold_setting_manage_uint8_t* threshold_setting_info);
+void setMinThreshold_uint8_t(struct threshold_setting_manage_uint8_t* threshold_setting_info);
+void init_setting_manage_struct_uint8_t(struct threshold_setting_manage_uint8_t* threshold_setting_manage, 
+                                        uint8_t* min_thr,
+                                        uint8_t* max_thr,
+                                        const char* minThresholdReadableName,
+                                        const char* maxThresholdReadableName,
+                                        const char* minThresholdTopicKey,
+                                        const char* maxThresholdTopicKey);
+// == uint32_t ==
+void setThreshold_uint32_t(uint32_t* new_thr, 
+                          const char* thr_readable_name,
+                          uint32_t* effective_thr,
+                          const char* other_thr_readable_name,
+                          uint32_t* other_thr,
+                          uint32_t* pending_thr, 
+                          bool* pending_thr_flag, 
+                          uint32_t* pending_other_thr, 
+                          bool* pending_other_thr_flag, 
+                          const char* threshold_topic_key,
+                          const char* other_threshold_topic_key,
+                          bool (*validThresholdsFun) (intmax_t other_thr, intmax_t thr));
+
+void setMaxThreshold_uint32_t(struct threshold_setting_manage_uint32_t* threshold_setting_info);
+void setMinThreshold_uint32_t(struct threshold_setting_manage_uint32_t* threshold_setting_info);
+void init_setting_manage_struct_uint32_t(struct threshold_setting_manage_uint32_t* threshold_setting_manage, 
+                                        uint32_t* min_thr,
+                                        uint32_t* max_thr,
+                                        const char* minThresholdReadableName,
+                                        const char* maxThresholdReadableName,
+                                        const char* minThresholdTopicKey,
+                                        const char* maxThresholdTopicKey);
+
+// == int8_t ==
+void setThreshold_int8_t(int8_t* new_thr, 
+                          const char* thr_readable_name,
+                          int8_t* effective_thr,
+                          const char* other_thr_readable_name,
+                          int8_t* other_thr,
+                          int8_t* pending_thr, 
+                          bool* pending_thr_flag, 
+                          int8_t* pending_other_thr, 
+                          bool* pending_other_thr_flag, 
+                          const char* threshold_topic_key,
+                          const char* other_threshold_topic_key,
+                          bool (*validThresholdsFun) (intmax_t other_thr, intmax_t thr));
+
+void setMaxThreshold_int8_t(struct threshold_setting_manage_int8_t* threshold_setting_info);
+void setMinThreshold_int8_t(struct threshold_setting_manage_int8_t* threshold_setting_info);
+void init_setting_manage_struct_int8_t(struct threshold_setting_manage_int8_t* threshold_setting_manage, 
+                                        int8_t* min_thr,
+                                        int8_t* max_thr,
+                                        const char* minThresholdReadableName,
+                                        const char* maxThresholdReadableName,
+                                        const char* minThresholdTopicKey,
+                                        const char* maxThresholdTopicKey);
+// Preferences functions
+void init_get_key_from_topic(void);
+void get_settings_from_preferences(void);
+void init_topic_keys(void);
+const char* get_key_from_topic(const char* topic);
 
 //--Callback functions (subscriptions)
 bool MQTT_uint32_callbackCore(uint32_t *variable_ptr, char* str, uint16_t len);
@@ -48,10 +131,10 @@ void MQTTOnLightThr_callback(char *str, uint16_t len);
 void MQTTOffLightThr_callback(char *str, uint16_t len);
 
 bool MQTT_uint8_callbackCore(uint8_t *variable_ptr, char* str, uint16_t len);
-void MQTTMinSoilHumThr_callback(char *str, uint16_t len);
-void MQTTMaxSoilHumThr_callback(char *str, uint16_t len);
-void MQTTMinAirHumThr_callback(char* str, uint16_t len);
-void MQTTMaxAirHumThr_callback(char* str, uint16_t len);
+void MQTTMinSoilMoistThr_callback(char *str, uint16_t len);
+void MQTTMaxSoilMoistThr_callback(char *str, uint16_t len);
+void MQTTMinAirMoistThr_callback(char* str, uint16_t len);
+void MQTTMaxAirMoistThr_callback(char* str, uint16_t len);
 
 bool MQTT_int8_callbackCore(int8_t *variable_ptr, char* str, uint16_t len);
 void MQTTMaxTempThr_callback(char *str, uint16_t len);
@@ -60,53 +143,193 @@ void MQTTMinTempThr_callback(char *str, uint16_t len);
 // Safe conversion functions
 bool SafeStrToInt32(char *str, uint16_t len, int32_t *int_value);
 bool SafeStrToUInt32(char *str, uint16_t len, uint32_t *uint_value);
+void MQTTSetSubscriptions(void);
+
 
 /*--------------------------------------------------*/
 /*----------------- Queue Handles ------------------*/
 /*--------------------------------------------------*/
-QueueHandle_t coordinator_queue = NULL;
-QueueHandle_t MQTTpub_queue = NULL;
+static QueueHandle_t coordinator_queue = NULL;
+static QueueHandle_t MQTTpub_queue = NULL;
 
 /*--------------------------------------------------*/
 /*----------------- Connectivity -------------------*/
 /*--------------------------------------------------*/
 // WiFi
-WiFiClient client;
+static WiFiClient client;
 // MQTT
-Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT); // client
+static Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT); // client
 
 // --Publish
 // ----Sensors publish
-Adafruit_MQTT_Publish MQTTpub_temp = Adafruit_MQTT_Publish(&mqtt, SENS_TEMP_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_air_hum = Adafruit_MQTT_Publish(&mqtt, SENS_AIR_HUM_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_soil_hum = Adafruit_MQTT_Publish(&mqtt, SENS_SOIL_HUM_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_lux = Adafruit_MQTT_Publish(&mqtt, SENS_LUX_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_temp = Adafruit_MQTT_Publish(&mqtt, SENS_TEMP_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_air_hum = Adafruit_MQTT_Publish(&mqtt, SENS_AIR_MOIST_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_soil_hum = Adafruit_MQTT_Publish(&mqtt, SENS_SOIL_MOIST_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_lux = Adafruit_MQTT_Publish(&mqtt, SENS_LUX_TOPIC);
 
 // ----Settings publish
-Adafruit_MQTT_Publish MQTTpub_valid_min_soil_hum_thr = Adafruit_MQTT_Publish(&mqtt, MIN_SOIL_HUM_THR_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_valid_max_soil_hum_thr = Adafruit_MQTT_Publish(&mqtt, MAX_SOIL_HUM_THR_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_valid_min_air_hum_thr = Adafruit_MQTT_Publish(&mqtt, MIN_AIR_HUM_THR_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_valid_max_air_hum_thr = Adafruit_MQTT_Publish(&mqtt, MAX_AIR_HUM_THR_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_valid_min_temp_thr = Adafruit_MQTT_Publish(&mqtt, MIN_TEMP_THR_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_valid_max_temp_thr = Adafruit_MQTT_Publish(&mqtt, MAX_TEMP_THR_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_valid_on_lights_thr = Adafruit_MQTT_Publish(&mqtt, ON_LIGHTS_THR_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_valid_off_lights_thr = Adafruit_MQTT_Publish(&mqtt, OFF_LIGHTS_THR_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_valid_irrig_act_duration = Adafruit_MQTT_Publish(&mqtt, IRRIG_ACT_DURATION_TOPIC);
-Adafruit_MQTT_Publish MQTTpub_valid_irrig_act_delay = Adafruit_MQTT_Publish(&mqtt, IRRIG_ACT_DELAY_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_valid_min_soil_hum_thr = Adafruit_MQTT_Publish(&mqtt, MIN_SOIL_MOIST_THR_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_valid_max_soil_hum_thr = Adafruit_MQTT_Publish(&mqtt, MAX_SOIL_MOIST_THR_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_valid_min_air_hum_thr = Adafruit_MQTT_Publish(&mqtt, MIN_AIR_MOIST_THR_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_valid_max_air_hum_thr = Adafruit_MQTT_Publish(&mqtt, MAX_AIR_MOIST_THR_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_valid_min_temp_thr = Adafruit_MQTT_Publish(&mqtt, MIN_TEMP_THR_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_valid_max_temp_thr = Adafruit_MQTT_Publish(&mqtt, MAX_TEMP_THR_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_valid_on_lights_thr = Adafruit_MQTT_Publish(&mqtt, ON_LIGHTS_THR_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_valid_off_lights_thr = Adafruit_MQTT_Publish(&mqtt, OFF_LIGHTS_THR_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_valid_irrig_act_duration = Adafruit_MQTT_Publish(&mqtt, IRRIG_ACT_DURATION_TOPIC);
+static Adafruit_MQTT_Publish MQTTpub_valid_irrig_act_delay = Adafruit_MQTT_Publish(&mqtt, IRRIG_ACT_DELAY_TOPIC);
+
+
+/*--------------------------------------------------*/
+/*---------- MQTT Configurable parameters ----------*/
+/*--------------------------------------------------*/
+
+struct threshold_setting_manage_uint8_t{
+
+  /* 
+    Contains pointers to important variables used by the functions 
+    that implement the protocol for updating thresholds with values fetched from MQTT.
+  */
+   
+  uint8_t* min_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* min_thr_readable_name;
+
+  uint8_t* max_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* max_thr_readable_name;
+  uint8_t effective_min_thr;
+  uint8_t effective_max_thr;
+
+  uint8_t pending_min_thr;
+  uint8_t pending_max_thr;
+  bool pending_min_thr_flag;
+  bool pending_max_thr_flag;
+
+  const char* min_thr_topic_key;
+  const char* max_thr_topic_key;
+};
+
+struct threshold_setting_manage_uint32_t{
+
+  /* 
+    Contains pointers to important variables used by the functions 
+    that implement the protocol for updating thresholds with values fetched from MQTT.
+  */
+   
+  uint32_t* min_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* min_thr_readable_name;
+
+  uint32_t* max_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* max_thr_readable_name;
+  uint32_t effective_min_thr;
+  uint32_t effective_max_thr;
+
+  uint32_t pending_min_thr;
+  uint32_t pending_max_thr;
+  bool pending_min_thr_flag;
+  bool pending_max_thr_flag;
+
+  const char* min_thr_topic_key;
+  const char* max_thr_topic_key;
+};
+
+struct threshold_setting_manage_int8_t{
+
+  /* 
+    Contains pointers to important variables used by the functions 
+    that implement the protocol for updating thresholds with values fetched from MQTT.
+  */
+   
+  int8_t* min_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* min_thr_readable_name;
+
+  int8_t* max_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* max_thr_readable_name;
+  int8_t effective_min_thr;
+  int8_t effective_max_thr;
+
+  int8_t pending_min_thr;
+  int8_t pending_max_thr;
+  bool pending_min_thr_flag;
+  bool pending_max_thr_flag;
+
+  const char* min_thr_topic_key;
+  const char* max_thr_topic_key;
+};
+
+// Irrigator
+static uint32_t IrrigatorActuationDuration;
+static uint32_t IrrigatorBetweenActivationsDelay;
+static const char* IrrigatorActuationDuration_TopicKey;
+static const char* IrrigatorBetweenActivationsDelay_TopicKey;
+
+// -- Thresholds --
+// Soil humidity
+static uint8_t MinSoilMoistureThreshold; // in per cent
+static const char* MinSoilMoistureThreshold_TopicKey;
+static uint8_t MaxSoilMoistureThreshold; 
+static const char* MaxSoilMoistureThreshold_TopicKey;
+
+
+// Air humidity
+static uint8_t MinAirMoistureThreshold; 
+static const char* MinAirMoistureThreshold_TopicKey;
+static uint8_t MaxAirMoistureThreshold; 
+static const char* MaxAirMoistureThreshold_TopicKey;
+
+
+// Lights
+static uint32_t LightsActivationThreshold; // min threshold
+static const char* LightsActivationThreshold_TopicKey;
+static uint32_t LightsDeactivationThreshold; // max threshold
+static const char* LightsDeactivationThreshold_TopicKey;
+
+
+// Temperature
+static int8_t MinTemperatureThreshold;
+static const char* MinTemperatureThreshold_TopicKey;
+static int8_t MaxTemperatureThreshold; 
+static const char* MaxTemperatureThreshold_TopicKey;
+
+
+// -- Necessary structs for updating thresholds via mqtt --
+
+// Soil humidity
+static struct threshold_setting_manage_uint8_t soil_thr_manage;
+
+// Air humidity
+static struct threshold_setting_manage_uint8_t air_thr_manage;
+
+// Lights
+static struct threshold_setting_manage_uint32_t lights_thr_manage;
+
+// Temperature
+static struct threshold_setting_manage_int8_t temp_thr_manage;
 
 // --Subscribe
-MQTT_subscription MQTTsub_min_soil_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MIN_SOIL_HUM_THR_TOPIC), MQTTMinSoilHumThr_callback };
-MQTT_subscription MQTTsub_max_soil_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MAX_SOIL_HUM_THR_TOPIC), MQTTMaxSoilHumThr_callback };
-MQTT_subscription MQTTsub_min_air_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MIN_AIR_HUM_THR_TOPIC), MQTTMinAirHumThr_callback };
-MQTT_subscription MQTTsub_max_air_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MAX_AIR_HUM_THR_TOPIC), MQTTMaxAirHumThr_callback };
-MQTT_subscription MQTTsub_min_temp_thr = { Adafruit_MQTT_Subscribe(&mqtt, MIN_TEMP_THR_TOPIC), MQTTMinTempThr_callback };
-MQTT_subscription MQTTsub_max_temp_thr = { Adafruit_MQTT_Subscribe(&mqtt, MAX_TEMP_THR_TOPIC), MQTTMaxTempThr_callback };
-MQTT_subscription MQTTsub_on_lights_thr = { Adafruit_MQTT_Subscribe(&mqtt, ON_LIGHTS_THR_TOPIC), MQTTOnLightThr_callback };
-MQTT_subscription MQTTsub_off_lights_thr = { Adafruit_MQTT_Subscribe(&mqtt, OFF_LIGHTS_THR_TOPIC), MQTTOffLightThr_callback };
-MQTT_subscription MQTTsub_irrig_act_duration = { Adafruit_MQTT_Subscribe(&mqtt, IRRIG_ACT_DURATION_TOPIC), MQTTIrrigActuationDuration_callback };
-MQTT_subscription MQTTsub_irrig_act_delay = { Adafruit_MQTT_Subscribe(&mqtt, IRRIG_ACT_DELAY_TOPIC), MQTTIrrigActuationDelay_callback };
+static MQTT_subscription MQTTsub_min_soil_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MIN_SOIL_MOIST_THR_TOPIC), MQTTMinSoilMoistThr_callback, DEFAULT_MinSoilMoistureThreshold, &MinSoilMoistureThreshold};
+static MQTT_subscription MQTTsub_max_soil_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MAX_SOIL_MOIST_THR_TOPIC), MQTTMaxSoilMoistThr_callback, DEFAULT_MaxSoilMoistureThreshold, &MaxSoilMoistureThreshold};
+static MQTT_subscription MQTTsub_on_lights_thr = { Adafruit_MQTT_Subscribe(&mqtt, ON_LIGHTS_THR_TOPIC), MQTTOnLightThr_callback, DEFAULT_LightsActivationThreshold, &LightsActivationThreshold};
+static MQTT_subscription MQTTsub_off_lights_thr = { Adafruit_MQTT_Subscribe(&mqtt, OFF_LIGHTS_THR_TOPIC), MQTTOffLightThr_callback, DEFAULT_LightsDeactivationThreshold, &LightsDeactivationThreshold};
+static MQTT_subscription MQTTsub_irrig_act_duration = { Adafruit_MQTT_Subscribe(&mqtt, IRRIG_ACT_DURATION_TOPIC), MQTTIrrigActuationDuration_callback, DEFAULT_IrrigatorActuationDuration, &IrrigatorActuationDuration};
+static MQTT_subscription MQTTsub_irrig_act_delay = { Adafruit_MQTT_Subscribe(&mqtt, IRRIG_ACT_DELAY_TOPIC), MQTTIrrigActuationDelay_callback, DEFAULT_IrrigatorBetweenActivationsDelay, &IrrigatorBetweenActivationsDelay};
+static MQTT_subscription MQTTsub_min_air_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MIN_AIR_MOIST_THR_TOPIC), MQTTMinAirMoistThr_callback, DEFAULT_MinAirMoistureThreshold, &MinAirMoistureThreshold };
+static MQTT_subscription MQTTsub_max_air_hum_thr = { Adafruit_MQTT_Subscribe(&mqtt, MAX_AIR_MOIST_THR_TOPIC), MQTTMaxAirMoistThr_callback, DEFAULT_MaxAirMoistureThreshold, &MaxAirMoistureThreshold };
+static MQTT_subscription MQTTsub_min_temp_thr = { Adafruit_MQTT_Subscribe(&mqtt, MIN_TEMP_THR_TOPIC), MQTTMinTempThr_callback, DEFAULT_MinTemperatureThreshold, &MinTemperatureThreshold };
+static MQTT_subscription MQTTsub_max_temp_thr = { Adafruit_MQTT_Subscribe(&mqtt, MAX_TEMP_THR_TOPIC), MQTTMaxTempThr_callback, DEFAULT_MaxTemperatureThreshold, &MaxTemperatureThreshold};
 
-MQTT_subscription *MQTT_subscription_array[MAXSUBSCRIPTIONS] = {
+static MQTT_subscription *MQTT_subscription_array[MAXSUBSCRIPTIONS] = {
   &MQTTsub_min_soil_hum_thr,
   &MQTTsub_max_soil_hum_thr,
   &MQTTsub_min_air_hum_thr,
@@ -119,30 +342,6 @@ MQTT_subscription *MQTT_subscription_array[MAXSUBSCRIPTIONS] = {
   &MQTTsub_irrig_act_delay
 };
 
-
-/*--------------------------------------------------*/
-/*---------- MQTT Configurable parameters ----------*/
-/*--------------------------------------------------*/
-// Soil humidity
-uint8_t IrrigatorActivationThreshold = DEFAULT_IrrigatorActivationThreshold; // in per cent
-uint8_t MaxSoilHumidityThreshold = DEFAULT_MaxSoilHumidityThreshold; 
-
-// Air humidity
-uint8_t MinAirHumidityThreshold = DEFAULT_MinAirHumidityThreshold; 
-uint8_t MaxAirHumidityThreshold = DEFAULT_MaxAirHumidityThreshold; 
-
-// Irrigator
-uint32_t IrrigatorExecutionTime = DEFAULT_IrrigatorExecutionTime;
-uint32_t IrrigatorBetweenActivationsDelay = DEFAULT_IrrigatorBetweenActivationsDelay;
-
-// Lights
-uint32_t LightsActivationThreshold = DEFAULT_LightsActivationThreshold;
-uint32_t LightsDeactivationThreshold = DEFAULT_LightsDeactivationThreshold;
-
-// Temperature
-int8_t MinTemperatureThreshold = DEFAULT_MinTemperatureThreshold;
-int8_t MaxTemperatureThreshold = DEFAULT_MaxTemperatureThreshold;
-
 /*--------------------------------------------------*/
 /*------------ Digital sensors Config --------------*/
 /*--------------------------------------------------*/
@@ -152,14 +351,106 @@ DHT dht(DHT11PIN, DHT11);
 /*--------------------------------------------------*/
 /*----------------- Boolean flags ------------------*/
 /*--------------------------------------------------*/
-bool lightsOn;
+static bool lightsOn;
 
+static Preferences preferences;
+
+// Contains the const char* value for the integer i for every integer i from 0 to MAXSUBSCRIPTIONS-1
+static const char* int_to_charpointer[MAXSUBSCRIPTIONS];
+
+// Sufficient size of the string that needs to represent an integer with value up to MAXSUBSCRIPTIONS-1
+static const uint8_t MAX_CHARS_FOR_TOPIC_KEY = snprintf( NULL, 0, "%d", MAXSUBSCRIPTIONS-1 ) + 1;
 
 // the setup function runs once when you press reset or power the board
-void setup() {
+void setup() 
+{
   
   // initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
+  
+
+  // Start connection phase
+
+  xTaskCreatePinnedToCore(
+    TaskConnect
+    ,  "TaskConnect"   
+    ,  5024  
+    ,  NULL
+    ,  CONNECT_PRIORITY
+    ,  &task_handle_Connect
+    ,  ARDUINO_RUNNING_CORE);
+
+  for(uint8_t i = 0; i < SETUP_MAX_CONNECTION_ATTEMPTS; i++)
+  {
+    if((WiFi.status() == WL_CONNECTED) && (mqtt.ping()))
+    {
+      break;
+    }
+
+    vTaskDelay(WiFiConnectAttemptDelay / portTICK_PERIOD_MS);
+  }
+
+  // End connection phase
+
+
+  init_get_key_from_topic();
+
+  init_topic_keys();
+
+  get_settings_from_preferences();
+
+
+  #if DEBUG_PREFERENCES
+    Serial.println(" ------ START PREFERENCES DEBUG ------");
+    // Serial.println("If the value from preferences equals the default value then, 
+    // if there wasn't a stored value equal to the default one, the value was not fetched from preferences.");
+
+    Serial.print("MAX_CHARS_FOR_TOPIC_KEY: ");
+    Serial.println(MAX_CHARS_FOR_TOPIC_KEY);
+    Serial.println();
+    for(uint8_t i = 0; i < MAXSUBSCRIPTIONS; i++)
+    {
+      if ( MQTT_subscription_array[i] && (MQTT_subscription_array[i]->callback) )
+      {
+        Serial.print((MQTT_subscription_array[i]->sub_obj).topic);
+        Serial.println(":");
+        Serial.print("Obtained value from preferences get function: ");
+
+        // variables with type uint8_t
+        if(  (strcmp((MQTT_subscription_array[i]->sub_obj).topic, MIN_SOIL_MOIST_THR_TOPIC) == 0)
+          || (strcmp((MQTT_subscription_array[i]->sub_obj).topic, MAX_SOIL_MOIST_THR_TOPIC) == 0)
+          || (strcmp((MQTT_subscription_array[i]->sub_obj).topic, MAX_AIR_MOIST_THR_TOPIC) == 0)
+          || (strcmp((MQTT_subscription_array[i]->sub_obj).topic, MIN_AIR_MOIST_THR_TOPIC) == 0)
+          )
+        {
+          Serial.println(*(uint8_t*)MQTT_subscription_array[i]->setting_variable);
+        }
+        // int8_t
+        else if(  (strcmp((MQTT_subscription_array[i]->sub_obj).topic, MAX_TEMP_THR_TOPIC) == 0)
+               || (strcmp((MQTT_subscription_array[i]->sub_obj).topic, MIN_TEMP_THR_TOPIC) == 0)
+          )
+        {
+          Serial.println(*(int8_t*)MQTT_subscription_array[i]->setting_variable);
+        }
+        // uint32_t 
+        else
+        {
+          Serial.println(*(uint32_t*)MQTT_subscription_array[i]->setting_variable);
+        }
+        
+        Serial.print("Default value: ");
+        Serial.println(MQTT_subscription_array[i]->default_setting_value);
+        Serial.println();
+      }
+    }
+    Serial.println("------ END PREFERENCES DEBUG ------");
+  #endif
+
+
+  if(mqtt.ping() == true)
+  {
+    MQTTFetchSubscriptions(PREFERENCES_SETTINGS_SCOPE_NAME, MQTT_SUBSCRIPTION_READING_TIMEOUT);
+  }
 
   lightsOn = false;
 
@@ -187,15 +478,6 @@ void setup() {
     ,  NULL
     ,  COORDINATOR_PRIORITY  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  &task_handle_Coordinator 
-    ,  ARDUINO_RUNNING_CORE);
-
-  xTaskCreatePinnedToCore(
-    TaskConnect
-    ,  "TaskConnect"   
-    ,  5024  
-    ,  NULL
-    ,  CONNECT_PRIORITY
-    ,  &task_handle_Connect
     ,  ARDUINO_RUNNING_CORE);
 
    xTaskCreatePinnedToCore(
@@ -283,6 +565,7 @@ void loop()
 /*---------------------- Tasks ---------------------*/
 /*--------------------------------------------------*/
 
+
 void TaskCoordinator(void *pvParameters)
 {
   (void) pvParameters;
@@ -302,110 +585,125 @@ void TaskCoordinator(void *pvParameters)
 
   for (;;) 
   {
-    #if PRINT_COORDINATOR_QUEUE_USAGE
-      printQueueUsageInfo(coordinator_queue, "Coordinator queue");
-    #endif
-
-    xQueueReceive(coordinator_queue, &sensor_reading_struct, portMAX_DELAY);
-
-    switch (sensor_reading_struct.sensor)
+    for(uint8_t i = 0; i < Amount_of_sensor_ids; i++)
     {
-      case Sensor_Id_DHT11Temperature:
-        
-        #if DEBUG_SENSORS
-          #if SENSORS_VERBOSE_DEBUG
-            Serial.print("Temperature: ");                       
-            Serial.println(sensor_reading_struct.sensor_reading);
+      #if PRINT_COORDINATOR_QUEUE_USAGE
+        printQueueUsageInfo(coordinator_queue, "Coordinator queue");
+      #endif
+
+      xQueueReceive(coordinator_queue, &sensor_reading_struct, portMAX_DELAY);
+
+      switch (sensor_reading_struct.sensor)
+      {
+        case Sensor_Id_DHT11Temperature:
+          
+          #if DEBUG_SENSORS
+            #if SENSORS_VERBOSE_DEBUG
+              Serial.print("Temperature: ");                       
+              Serial.println(sensor_reading_struct.sensor_reading);
+            #endif
           #endif
-        #endif
-        
-        // If a bad state is detected
-        if ( sensor_reading_struct.sensor_reading < MinTemperatureThreshold ||\
-             sensor_reading_struct.sensor_reading > MaxTemperatureThreshold   )
-        {
-          BadSensorStateArray[Sensor_Id_DHT11Temperature] = true;
-        } // else if the bad state is over
-        else if ( BadSensorStateArray[Sensor_Id_DHT11Temperature] )
-          BadSensorStateArray[Sensor_Id_DHT11Temperature] = false;
-        
-        break;  
+          
+          // If a bad state is detected
+          if ( sensor_reading_struct.sensor_reading < MinTemperatureThreshold ||\
+              sensor_reading_struct.sensor_reading > MaxTemperatureThreshold   )
+          {
+            BadSensorStateArray[Sensor_Id_DHT11Temperature] = true;
+          } // else if the bad state is over
+          else if ( BadSensorStateArray[Sensor_Id_DHT11Temperature] )
+          {
+            BadSensorStateArray[Sensor_Id_DHT11Temperature] = false;
+          }
+          else {}
+          
+          break;  
 
-      case Sensor_Id_DHT11Humidity:
-        
-        #if DEBUG_SENSORS
-          #if SENSORS_VERBOSE_DEBUG
-            Serial.print("Air humidity: ");
-            Serial.println(sensor_reading_struct.sensor_reading);
+        case Sensor_Id_DHT11Humidity:
+          
+          #if DEBUG_SENSORS
+            #if SENSORS_VERBOSE_DEBUG
+              Serial.print("Air humidity: ");
+              Serial.println(sensor_reading_struct.sensor_reading);
+            #endif
           #endif
-        #endif
 
-        if ( sensor_reading_struct.sensor_reading < MinAirHumidityThreshold ||\
-              sensor_reading_struct.sensor_reading > MaxAirHumidityThreshold   )
-        {
-          BadSensorStateArray[Sensor_Id_DHT11Humidity] = true;
-        }
-        else if ( BadSensorStateArray[Sensor_Id_DHT11Humidity] )
-          BadSensorStateArray[Sensor_Id_DHT11Humidity] = false;
+          if ( sensor_reading_struct.sensor_reading < MinAirMoistureThreshold ||\
+                sensor_reading_struct.sensor_reading > MaxAirMoistureThreshold   )
+          {
+            BadSensorStateArray[Sensor_Id_DHT11Humidity] = true;
+          }
+          else if ( BadSensorStateArray[Sensor_Id_DHT11Humidity] )
+          {
+            BadSensorStateArray[Sensor_Id_DHT11Humidity] = false;
+          }
+          else {}
 
-        MQTTQueueSend( sensor_reading_struct );
-        
-        break;
+          MQTTQueueSend( sensor_reading_struct );
+          
+          break;
 
-      case Sensor_Id_YL69SoilHumidity:
+        case Sensor_Id_YL69SoilHumidity:
 
-        #if DEBUG_SENSORS
-          #if SENSORS_VERBOSE_DEBUG
-            Serial.print("Soil humidity: ");
-            Serial.println(sensor_reading_struct.sensor_reading);
+          #if DEBUG_SENSORS
+            #if SENSORS_VERBOSE_DEBUG
+              Serial.print("Soil humidity: ");
+              Serial.println(sensor_reading_struct.sensor_reading);
+            #endif
           #endif
-        #endif
 
-        MQTTQueueSend( sensor_reading_struct );
+          MQTTQueueSend( sensor_reading_struct );
 
-        // Irrigator actuation logic
-        if(sensor_reading_struct.sensor_reading < IrrigatorActivationThreshold)
-        {
-          vTaskResume(task_handle_ActuatorIrrigator);
-        }
+          // Irrigator actuation logic
+          if(sensor_reading_struct.sensor_reading < MinSoilMoistureThreshold)
+          {
+            vTaskResume(task_handle_ActuatorIrrigator);
+          }
 
-        if ( sensor_reading_struct.sensor_reading < IrrigatorActivationThreshold ||\
-              sensor_reading_struct.sensor_reading > MaxSoilHumidityThreshold       )
-        {
-          BadSensorStateArray[Sensor_Id_YL69SoilHumidity] = true;
-        }
-        else if ( BadSensorStateArray[Sensor_Id_YL69SoilHumidity] )
-          BadSensorStateArray[Sensor_Id_YL69SoilHumidity] = false;
-      
-        break;
+          if ( sensor_reading_struct.sensor_reading < MinSoilMoistureThreshold ||\
+                sensor_reading_struct.sensor_reading > MaxSoilMoistureThreshold       )
+          {
+            BadSensorStateArray[Sensor_Id_YL69SoilHumidity] = true;
+          }
+          else if ( BadSensorStateArray[Sensor_Id_YL69SoilHumidity] )
+          {
+            BadSensorStateArray[Sensor_Id_YL69SoilHumidity] = false;
+          }
+          else {}
 
-      case Sensor_Id_Lux:
+          break;
 
-        #if DEBUG_SENSORS
-          #if SENSORS_VERBOSE_DEBUG
-            Serial.print("Lux: ");
-            Serial.println(sensor_reading_struct.sensor_reading);
+        case Sensor_Id_Lux:
+
+          #if DEBUG_SENSORS
+            #if SENSORS_VERBOSE_DEBUG
+              Serial.print("Lux: ");
+              Serial.println(sensor_reading_struct.sensor_reading);
+            #endif
           #endif
-        #endif
 
-        MQTTQueueSend( sensor_reading_struct );
+          MQTTQueueSend( sensor_reading_struct );
 
-        // Lights actuation logic
-        if (sensor_reading_struct.sensor_reading < LightsActivationThreshold 
-          && lightsOn == false)
-        {
-          vTaskResume(task_handle_ActuatorLights); // Activate lights
-        }
-        else if (sensor_reading_struct.sensor_reading > LightsDeactivationThreshold 
-          && lightsOn == true)
-        {
-          vTaskResume(task_handle_ActuatorLights); // Deactivate lights
-        }
-        break;
+          // Lights actuation logic
+          if ((sensor_reading_struct.sensor_reading < LightsActivationThreshold)
+            && (lightsOn == false))
+          {
+            vTaskResume(task_handle_ActuatorLights); // Activate lights
+          }
+          else if ((sensor_reading_struct.sensor_reading > LightsDeactivationThreshold)
+            && (lightsOn == true))
+          {
+            vTaskResume(task_handle_ActuatorLights); // Deactivate lights
+          }
+          else
+          {
+            // Do nothing
+          }
+          break;
 
-      default:
-        break;
+        default:
+          break;
+      }
     }
-
     /* 
       Update the status of the led signaling possible dangerous states of
       the greenhouse.
@@ -417,12 +715,13 @@ void TaskCoordinator(void *pvParameters)
     {
       for ( uint8_t i = 0; i < Amount_of_sensor_ids; i++ )
       {
-        if ( BadSensorStateArray[i] )
+        if ( BadSensorStateArray[i] == true)
         {
           ghStateWarningLED_ON = true;
           digitalWrite(greenhouseStateWarningLED, HIGH);
           break;
         }
+        else {}        
       }
     }
     else // If the led is already ON check if there are still sensors detecting
@@ -431,8 +730,10 @@ void TaskCoordinator(void *pvParameters)
 
       for ( uint8_t i = 0; i < Amount_of_sensor_ids; i++ )
       {
-        if ( BadSensorStateArray[i] )
+        if ( BadSensorStateArray[i] == true)
+        {
           bad_state = true;
+        }
       }
 
       if ( !bad_state )
@@ -441,7 +742,7 @@ void TaskCoordinator(void *pvParameters)
         digitalWrite(greenhouseStateWarningLED, LOW);
       }
     }
-    
+     
     vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);
 
     #if PRINT_TASK_MEMORY_USAGE
@@ -462,8 +763,11 @@ void TaskReadDHT11Temperature(void *pvParameters)
   struct sensor_msg sensor_reading_struct;
   sensor_reading_struct.sensor = Sensor_Id_DHT11Temperature;
   
+  TickType_t xLastActivationTime = xTaskGetTickCount();
   for (;;) 
   {
+    vTaskDelayUntil(&xLastActivationTime, DHT11TemperaturePeriod / portTICK_PERIOD_MS);
+
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
@@ -479,7 +783,6 @@ void TaskReadDHT11Temperature(void *pvParameters)
       /* Failed to post the message */
     }
                     
-    vTaskDelay(DHT11TemperaturePeriod / portTICK_PERIOD_MS);
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadDHT11Temperature");
@@ -500,9 +803,12 @@ void TaskReadDHT11Humidity(void *pvParameters)
   sensor_reading_struct.sensor = Sensor_Id_DHT11Humidity;
   
   
+  TickType_t xLastActivationTime = xTaskGetTickCount();
   for (;;) 
   {
     
+    vTaskDelayUntil(&xLastActivationTime, DHT11HumidityPeriod / portTICK_PERIOD_MS);
+
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
@@ -518,7 +824,6 @@ void TaskReadDHT11Humidity(void *pvParameters)
       /* Failed to post the message */
     }
                     
-    vTaskDelay(DHT11HumidityPeriod / portTICK_PERIOD_MS);
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadDHT11Humidity");
@@ -537,8 +842,11 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
   struct sensor_msg sensor_reading_struct;
   sensor_reading_struct.sensor = Sensor_Id_YL69SoilHumidity;
   
+  TickType_t xLastActivationTime = xTaskGetTickCount();
   for (;;) 
   {
+    vTaskDelayUntil(&xLastActivationTime, YL69SoilHumidityPeriod / portTICK_PERIOD_MS);
+
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
@@ -554,7 +862,6 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
       /* Failed to post the message */
     }
                     
-    vTaskDelay(YL69SoilHumidityPeriod / portTICK_PERIOD_MS);
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadYL69SoilHumidity");
@@ -572,9 +879,12 @@ void TaskReadLux(void *pvParameters)
   
   struct sensor_msg sensor_reading_struct;
   sensor_reading_struct.sensor = Sensor_Id_Lux;
-  
+   
+  TickType_t xLastActivationTime = xTaskGetTickCount();
   for (;;) 
   {
+    vTaskDelayUntil(&xLastActivationTime, LuxReadingPeriod / portTICK_PERIOD_MS);
+
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
@@ -590,7 +900,6 @@ void TaskReadLux(void *pvParameters)
       /* Failed to post the message */
     }
                     
-    vTaskDelay(LuxReadingPeriod / portTICK_PERIOD_MS);
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadLux");
@@ -623,7 +932,8 @@ void TaskActuatorIrrigator(void *pvParameters)
 
 
     // The task will be unblocked after the specified amount of time (this represents the amount of time spent irrigating)
-    vTaskDelay(IrrigatorExecutionTime / portTICK_PERIOD_MS);
+    vTaskDelay(IrrigatorActuationDuration / portTICK_PERIOD_MS);
+
 
 
     #if DEBUG_ACTUATORS
@@ -695,6 +1005,7 @@ void TaskActuatorLights(void *pvParameters)
   } 
 }
 
+
 void TaskConnect( void *pvParameters )
 {
   (void) pvParameters;
@@ -711,49 +1022,62 @@ void TaskConnect( void *pvParameters )
 
       connectMQTT();
     }
-    else if (!mqtt.connected())
+    else if (mqtt.connected() == false)
     {
       connectMQTT();
     }
+    else {}
 
-    if (mqtt.connected())
+    if (mqtt.connected() == true)
+    {
       digitalWrite(connectionLED, HIGH);
+    }
+    else {}
+
+    #if PRINT_TASK_MEMORY_USAGE
+      printStackUsageInfo("TaskActuatorLights");
+    #endif
 
     vTaskSuspend(NULL);
   }
 }
+
 
 void TaskMQTTpublish( void* pvParameters )
 {
   (void) pvParameters;
 
   struct sensor_msg sensor_reading_struct;
-
+  bool publishReturnValue;  // misra c 2012 Rule 17.7: The return value of a non-void function shall be used
   for (;;)
   {
-    if(mqtt.ping())
+    
+
+    if(mqtt.ping() == true)
     {
       for( uint8_t i = 0; i < MQTT_PUBLISH_PER_EXECUTION ; i++)
       {
         if(xQueueReceive(MQTTpub_queue, &sensor_reading_struct, portMAX_DELAY) != pdPASS)
+        {
           break;
+        }
 
         switch (sensor_reading_struct.sensor)
         {
           case Sensor_Id_DHT11Temperature:
-            MQTTPublishMessage(MQTTpub_temp, sensor_reading_struct.sensor_reading);
+            publishReturnValue = MQTTPublishMessage(MQTTpub_temp, sensor_reading_struct.sensor_reading);
             break;
           
           case Sensor_Id_DHT11Humidity:
-            MQTTPublishMessage(MQTTpub_air_hum, sensor_reading_struct.sensor_reading);
+            publishReturnValue = MQTTPublishMessage(MQTTpub_air_hum, sensor_reading_struct.sensor_reading);
             break;
           
           case Sensor_Id_YL69SoilHumidity:
-            MQTTPublishMessage(MQTTpub_soil_hum, sensor_reading_struct.sensor_reading);
+            publishReturnValue = MQTTPublishMessage(MQTTpub_soil_hum, sensor_reading_struct.sensor_reading);
             break;
 
           case Sensor_Id_Lux:
-            MQTTPublishMessage(MQTTpub_lux, sensor_reading_struct.sensor_reading);
+            publishReturnValue = MQTTPublishMessage(MQTTpub_lux, sensor_reading_struct.sensor_reading);
             break;
 
           default:
@@ -767,7 +1091,11 @@ void TaskMQTTpublish( void* pvParameters )
       vTaskResume(task_handle_Connect);
     }
 
-    vTaskDelay(MQTTPublishPeriod / portTICK_PERIOD_MS);
+  #if PRINT_TASK_MEMORY_USAGE
+    printStackUsageInfo("TaskMQTTpublish");
+  #endif
+
+  vTaskDelay(MQTTPublishPeriod / portTICK_PERIOD_MS);
   }
 }
 
@@ -777,9 +1105,10 @@ void TaskMQTTfetchSubscriptions( void *pvParameters )
 
   for(;;)
   {
-    if(mqtt.ping())
+
+    if(mqtt.ping() == true)
     {
-      mqtt.processPackets(MQTT_SUBSCRIPTION_READING_TIMEOUT);
+      MQTTFetchSubscriptions(PREFERENCES_SETTINGS_SCOPE_NAME, MQTT_SUBSCRIPTION_READING_TIMEOUT);
     }
     else
     {
@@ -787,12 +1116,69 @@ void TaskMQTTfetchSubscriptions( void *pvParameters )
       vTaskResume(task_handle_Connect);
     }
 
+    #if PRINT_TASK_MEMORY_USAGE
+      printStackUsageInfo("TaskMQTTfetchSubscriptions");
+    #endif
+
     vTaskDelay(MQTTSubscribePeriod / portTICK_PERIOD_MS);
   }
 }
 /*--------------------------------------------------*/
 /*------------------- Functions --------------------*/
 /*--------------------------------------------------*/
+void init_get_key_from_topic(void)
+{
+  /*
+    Neccessary initialization for the 'get_key_from_topic' function
+  */
+  char str[MAX_CHARS_FOR_TOPIC_KEY];  
+  for(uint8_t i = 0; i < MAXSUBSCRIPTIONS; i++)
+  {
+    (void) sprintf(str, "%d", i);
+    int_to_charpointer[i] = (const char*) strdup(str);  
+  }
+}
+
+void init_topic_keys(void)
+{
+  IrrigatorActuationDuration_TopicKey = get_key_from_topic(IRRIG_ACT_DURATION_TOPIC); 
+  IrrigatorBetweenActivationsDelay_TopicKey = get_key_from_topic(IRRIG_ACT_DELAY_TOPIC); 
+  LightsActivationThreshold_TopicKey = get_key_from_topic(ON_LIGHTS_THR_TOPIC); 
+  LightsDeactivationThreshold_TopicKey = get_key_from_topic(OFF_LIGHTS_THR_TOPIC); 
+  MinSoilMoistureThreshold_TopicKey = get_key_from_topic(MIN_SOIL_MOIST_THR_TOPIC); 
+  MaxSoilMoistureThreshold_TopicKey = get_key_from_topic(MAX_SOIL_MOIST_THR_TOPIC);
+  MinAirMoistureThreshold_TopicKey = get_key_from_topic(MIN_AIR_MOIST_THR_TOPIC);
+  MaxAirMoistureThreshold_TopicKey = get_key_from_topic(MAX_AIR_MOIST_THR_TOPIC);
+  MinTemperatureThreshold_TopicKey = get_key_from_topic(MIN_TEMP_THR_TOPIC);
+  MaxTemperatureThreshold_TopicKey = get_key_from_topic(MAX_TEMP_THR_TOPIC);
+}
+
+void get_settings_from_preferences(void)
+{
+  /*
+    Loads the settings present in flash memory. 
+    The settings not present in flash will receive the default value defined in "SGreenHouseConfig.h". 
+  */
+  preferences.begin(PREFERENCES_SETTINGS_SCOPE_NAME, true);
+  IrrigatorActuationDuration = preferences.getUInt(IrrigatorActuationDuration_TopicKey, DEFAULT_IrrigatorActuationDuration); 
+  IrrigatorBetweenActivationsDelay = preferences.getUInt(IrrigatorBetweenActivationsDelay_TopicKey, DEFAULT_IrrigatorBetweenActivationsDelay); 
+  LightsActivationThreshold = preferences.getUInt(LightsActivationThreshold_TopicKey, DEFAULT_LightsActivationThreshold); 
+  LightsDeactivationThreshold = preferences.getUInt(LightsDeactivationThreshold_TopicKey, DEFAULT_LightsDeactivationThreshold); 
+  MinSoilMoistureThreshold = preferences.getUChar(MinSoilMoistureThreshold_TopicKey, DEFAULT_MinSoilMoistureThreshold); 
+  MaxSoilMoistureThreshold = preferences.getUChar(MaxSoilMoistureThreshold_TopicKey, DEFAULT_MaxSoilMoistureThreshold);
+  MinAirMoistureThreshold = preferences.getUChar(MinAirMoistureThreshold_TopicKey, DEFAULT_MinAirMoistureThreshold);
+  MaxAirMoistureThreshold = preferences.getUChar(MaxAirMoistureThreshold_TopicKey, DEFAULT_MaxAirMoistureThreshold);
+  MinTemperatureThreshold = preferences.getChar(MinTemperatureThreshold_TopicKey, DEFAULT_MinTemperatureThreshold);
+  MaxTemperatureThreshold = preferences.getChar(MaxTemperatureThreshold_TopicKey, DEFAULT_MaxTemperatureThreshold);
+  preferences.end();
+
+  // Necessary inizializations for the protocol that sets thresholds with mqtt 
+
+  init_setting_manage_struct_uint8_t(&soil_thr_manage, &MinSoilMoistureThreshold, &MaxSoilMoistureThreshold, "MinSoilMoistureThreshold", "MaxSoilMoistureThreshold", MinSoilMoistureThreshold_TopicKey, MaxSoilMoistureThreshold_TopicKey);
+  init_setting_manage_struct_uint8_t(&air_thr_manage, &MinAirMoistureThreshold, &MaxAirMoistureThreshold, "MinAirMoistureThreshold", "MaxAirMoistureThreshold", MinAirMoistureThreshold_TopicKey, MaxAirMoistureThreshold_TopicKey);
+  init_setting_manage_struct_uint32_t(&lights_thr_manage, &LightsActivationThreshold, &LightsDeactivationThreshold, "LightsActivationThreshold", "LightsDeactivationThreshold", LightsActivationThreshold_TopicKey, LightsDeactivationThreshold_TopicKey);
+  init_setting_manage_struct_int8_t(&temp_thr_manage, &MinTemperatureThreshold, &MaxTemperatureThreshold, "MinTemperatureThreshold", "MaxTemperatureThreshold", MinTemperatureThreshold_TopicKey, MaxTemperatureThreshold_TopicKey);
+}
 
 void connectWiFi()
 {
@@ -835,7 +1221,9 @@ void connectMQTT()
     { 
       ret = mqtt.connect();
       if(ret == 0)
+      {
         break;
+      }
         
       #if MQTT_CONNECTION_VERBOSE_DEBUG
         Serial.println(mqtt.connectErrorString(ret));
@@ -846,9 +1234,13 @@ void connectMQTT()
 
     #if MQTT_CONNECTION_VERBOSE_DEBUG
       if(ret == 0)
+      {
         Serial.println("MQTT connected successfully!");
+      }
       else
+      {
         Serial.println("All MQTT connection attempts failed!");
+      }
     #endif
 }
 
@@ -881,19 +1273,27 @@ bool MQTTPublishMessage( Adafruit_MQTT_Publish MQTT_topic_pub, float32_t msg)
 {
   for( uint8_t i = 0; i < MQTT_MAX_PUBLISHING_ATTEMPTS; i++ )
   {  
-    if(MQTT_topic_pub.publish(msg))
+    if(MQTT_topic_pub.publish(msg) == true){
       return true;
+    }
 
     #if MQTT_PUBLISH_FAIL_VERBOSE_DEBUG
       Serial.print("Failed attempt number "); 
-      Serial.print(i+1);
+      Serial.print(i+(uint8_t) 1);
       Serial.println(" to publish a message!");
     #endif
   }
   return false;
 }
 
-void MQTTSetSubscriptions()
+void MQTTFetchSubscriptions(const char* preferencesScopeName, int16_t timeout)
+{
+  preferences.begin(preferencesScopeName, false);
+  mqtt.processPackets(timeout);
+  preferences.end();
+}
+
+void MQTTSetSubscriptions(void)
 {
   for(uint8_t i = 0; i < MAXSUBSCRIPTIONS; i++)
   {
@@ -905,6 +1305,32 @@ void MQTTSetSubscriptions()
       mqtt.subscribe( &(MQTT_subscription_array[i]->sub_obj) );
     }
   }
+}
+
+const char* get_key_from_topic(const char* topic)
+{
+  /* 
+    Requires prior inizialization (call to 'init_get_key_from_topic()')
+
+    Used for generating the preference key (that has to be max 15 characters long) using the name of the topic. 
+    It returns the index relative to the position of the topic in the MQTT_subscription_array.
+    The index returned is trasformed into a const char* variable, see the definition of the array 'int_to_charpointer' for more details.
+  */
+  for(uint8_t i = 0; i < MAXSUBSCRIPTIONS; i++)
+  {
+    if ( MQTT_subscription_array[i] && (MQTT_subscription_array[i]->callback) )
+    {
+      if(strcmp(MQTT_subscription_array[i]->sub_obj.topic, topic) == 0)
+      {
+        return int_to_charpointer[i];
+      }
+    }
+  }
+  #if DEBUG_PREFERENCES
+    Serial.println("ERROR: function 'get_key_from_topic' got a non-existent topic as parameter.");
+  #endif
+
+  return NULL; 
 }
 
 // ====Callbacks====
@@ -924,85 +1350,141 @@ bool MQTT_uint32_callbackCore(uint32_t *variable_ptr, char* str, uint16_t len)
 
 void MQTTIrrigActuationDuration_callback(char* str, uint16_t len)
 {
-  bool success;
-  success = MQTT_uint32_callbackCore(&IrrigatorExecutionTime, str, len);
+  bool convertion_from_string_success;
+  uint32_t effectiveIrrigatorActuationDuration = IrrigatorActuationDuration;
 
-  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    if(success)
+  convertion_from_string_success = MQTT_uint32_callbackCore(&IrrigatorActuationDuration, str, len);
+
+  if(convertion_from_string_success == true)
+  {
+    if(IrrigatorActuationDuration >= IRRIG_MIN_ACTUATION_DURATION)
     {
-      printFetchedValue("IrrigatorExecutionTime", IrrigatorExecutionTime);
+      preferences.putUInt(IrrigatorActuationDuration_TopicKey, IrrigatorActuationDuration);
     }
     else
     {
-      Serial.println("***__Ignoring an unvalid value for: IrrigatorExecutionTime__***");
-      MQTTpub_valid_irrig_act_duration.publish(IrrigatorExecutionTime);
+      IrrigatorActuationDuration = effectiveIrrigatorActuationDuration;
+      MQTTpub_valid_irrig_act_duration.publish(IrrigatorActuationDuration);
+      #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+        Serial.print("Invalid value for setting IrrigatorActuationDuration: less than the permitted minimum of ");
+        Serial.println(IRRIG_MIN_ACTUATION_DURATION);
+      #endif
+    }
+  }
+
+  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+    if(convertion_from_string_success)
+    {
+      printFetchedValue("IrrigatorActuationDuration", IrrigatorActuationDuration);
+    }
+    else
+    {
+      Serial.println("***__Ignoring an invalid value for: IrrigatorExecutionTime__***");
+      MQTTpub_valid_irrig_act_duration.publish(IrrigatorActuationDuration);
     }
   #else
-    if(!success)
-      MQTTpub_valid_irrig_act_duration.publish(IrrigatorExecutionTime);
+    if(!convertion_from_string_success)
+    {
+      MQTTpub_valid_irrig_act_duration.publish(IrrigatorActuationDuration);
+    }
+    else
+    {
+      // Do nothing, continue
+    }
   #endif
 }
 
 void MQTTIrrigActuationDelay_callback(char* str, uint16_t len)
 {
-  bool success;
-  success = MQTT_uint32_callbackCore(&IrrigatorBetweenActivationsDelay, str, len);
-
+  bool convertion_from_string_success;
+  convertion_from_string_success = MQTT_uint32_callbackCore(&IrrigatorBetweenActivationsDelay, str, len);
+  if(convertion_from_string_success == true)
+  {
+    preferences.putUInt(IrrigatorBetweenActivationsDelay_TopicKey, IrrigatorBetweenActivationsDelay);
+  }
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    if(success)
+    if(convertion_from_string_success)
     {
       printFetchedValue("IrrigatorBetweenActivationsDelay", IrrigatorBetweenActivationsDelay);
     }
     else
     {
-      Serial.println("***__Ignoring an unvalid value for: IrrigatorBetweenActivationsDelay__***");
+      Serial.println("***__Ignoring an invalid value for: IrrigatorBetweenActivationsDelay__***");
       MQTTpub_valid_irrig_act_delay.publish(IrrigatorBetweenActivationsDelay);
     }
   #else
-    if(!success)
+    if(!convertion_from_string_success)
+    {
       MQTTpub_valid_irrig_act_delay.publish(IrrigatorBetweenActivationsDelay);
+    }
+    else
+    {
+      // Do nothing, continue
+    }
   #endif
 }
 
 void MQTTOnLightThr_callback(char* str, uint16_t len)
 {
-  bool success;
-  success = MQTT_uint32_callbackCore(&LightsActivationThreshold, str, len);
+  bool convertion_from_string_success;
+  lights_thr_manage.effective_min_thr = LightsActivationThreshold;
 
+  convertion_from_string_success = MQTT_uint32_callbackCore(&LightsActivationThreshold, str, len);
+  if(convertion_from_string_success == true)
+  {
+    setMinThreshold_uint32_t(&lights_thr_manage);
+  }
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    if(success)
+    if(convertion_from_string_success)
     {
       printFetchedValue("LightsActivationThreshold", LightsActivationThreshold);
     }
     else
     {
-      Serial.println("***__Ignoring an unvalid value for: LightsActivationThreshold__***");
+      Serial.println("***__Ignoring an invalid value for: LightsActivationThreshold__***");
       MQTTpub_valid_on_lights_thr.publish(LightsActivationThreshold);
     }
   #else
-    if(!success)
+    if(!convertion_from_string_success)
+    {
       MQTTpub_valid_on_lights_thr.publish(LightsActivationThreshold);
+    }
+    else
+    {
+      // Do nothing, continue
+    }
   #endif
 }
 
 void MQTTOffLightThr_callback(char* str, uint16_t len)
 {
-  bool success;
-  success = MQTT_uint32_callbackCore(&LightsDeactivationThreshold, str, len);
+  bool convertion_from_string_success;
+  lights_thr_manage.effective_max_thr = LightsDeactivationThreshold;
 
+  convertion_from_string_success = MQTT_uint32_callbackCore(&LightsDeactivationThreshold, str, len);
+  if(convertion_from_string_success == true)
+  {
+    setMaxThreshold_uint32_t(&lights_thr_manage);
+  }
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    if(success)
+    if(convertion_from_string_success)
     {
       printFetchedValue("LightsDeactivationThreshold", LightsDeactivationThreshold);
     }
     else
     {
-      Serial.println("***__Ignoring an unvalid value for: LightsDeactivationThreshold__***");
+      Serial.println("***__Ignoring an invalid value for: LightsDeactivationThreshold__***");
       MQTTpub_valid_off_lights_thr.publish(LightsDeactivationThreshold);
     }
   #else
-    if(!success)
+    if(!convertion_from_string_success)
+    {
       MQTTpub_valid_off_lights_thr.publish(LightsDeactivationThreshold);
+    }
+    else
+    {
+      // Do nothing, continue
+    }
   #endif
 }
 
@@ -1013,7 +1495,7 @@ bool MQTT_uint8_callbackCore(uint8_t *variable_ptr, char* str, uint16_t len)
 
   if(SafeStrToUInt32(str, len, &uint32_value))
   {
-    if(uint32_value <= UINT8_MAX)
+    if(uint32_value <= (uint32_t ) UINT8_MAX)
     {
       *variable_ptr = (uint8_t) uint32_value;
       return true;
@@ -1022,87 +1504,158 @@ bool MQTT_uint8_callbackCore(uint8_t *variable_ptr, char* str, uint16_t len)
   return false;
 }
 
-void MQTTMaxSoilHumThr_callback(char* str, uint16_t len)
+
+void MQTTMaxSoilMoistThr_callback(char* str, uint16_t len)
 {
-  bool success;
-  success = MQTT_uint8_callbackCore(&MaxSoilHumidityThreshold, str, len);
+  bool convertion_from_string_success;
+
+  soil_thr_manage.effective_max_thr = MaxSoilMoistureThreshold;
+
+  convertion_from_string_success = MQTT_uint8_callbackCore(&MaxSoilMoistureThreshold, str, len);
+  
+  if(convertion_from_string_success == true)
+  {
+    setMaxThreshold_uint8_t(&soil_thr_manage);
+  }
+  else
+  {
+    // Do nothing, continue
+  }
   
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    if(success)
+    if(convertion_from_string_success)
     {
-      printFetchedValue("MaxSoilHumidityThreshold", MaxSoilHumidityThreshold);
+      printFetchedValue("MaxSoilMoistureThreshold", MaxSoilMoistureThreshold);
     }
     else
     {
-      Serial.println("***__Ignoring an unvalid value for: MaxSoilHumidityThreshold__***");
-      MQTTpub_valid_max_soil_hum_thr.publish(MaxSoilHumidityThreshold);
+      Serial.println("***__Ignoring an invalid value for: MaxSoilHumidityThreshold__***");
+      MQTTpub_valid_max_soil_hum_thr.publish(MaxSoilMoistureThreshold);
     }
   #else
-    if(!success)
-      MQTTpub_valid_max_soil_hum_thr.publish(MaxSoilHumidityThreshold);
+    if(!convertion_from_string_success)
+    {
+      MQTTpub_valid_max_soil_hum_thr.publish(MaxSoilMoistureThreshold);
+    }
+    else
+    {
+      // Do nothing, continue
+    }
   #endif
 }
 
-void MQTTMinSoilHumThr_callback(char* str, uint16_t len)
+void MQTTMinSoilMoistThr_callback(char* str, uint16_t len)
 {
-  bool success;
-  success = MQTT_uint8_callbackCore(&IrrigatorActivationThreshold, str, len);
+  
+  bool convertion_from_string_success;
+
+  soil_thr_manage.effective_min_thr = MinSoilMoistureThreshold;
+
+  convertion_from_string_success = MQTT_uint8_callbackCore(&MinSoilMoistureThreshold, str, len);
+  
+  if(convertion_from_string_success == true)
+  {
+    setMinThreshold_uint8_t(&soil_thr_manage);
+  }
+  else
+  {
+    // Conversion failed
+    // Do nothing, continue
+  }
   
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    if(success)
+    if(convertion_from_string_success)
     {
-      printFetchedValue("IrrigatorActivationThreshold", IrrigatorActivationThreshold);
+      printFetchedValue("MinSoilMoistureThreshold", MinSoilMoistureThreshold);
     }
     else
     {
-      Serial.println("***__Ignoring an unvalid value for: IrrigatorActivationThreshold__***");
-      MQTTpub_valid_min_soil_hum_thr.publish(IrrigatorActivationThreshold);
+      Serial.println("***__Ignoring an invalid value for: MinSoilHumidityThreshold__***");
+      MQTTpub_valid_min_soil_hum_thr.publish(MinSoilMoistureThreshold);
     }
   #else
-    if(!success)
-      MQTTpub_valid_min_soil_hum_thr.publish(IrrigatorActivationThreshold);
+    if(!convertion_from_string_success)
+    {
+      MQTTpub_valid_min_soil_hum_thr.publish(MinSoilMoistureThreshold);
+    }
+    else
+    {
+      // Do nothing, continue
+    }
   #endif
 }
 
-void MQTTMaxAirHumThr_callback(char* str, uint16_t len)
+void MQTTMaxAirMoistThr_callback(char* str, uint16_t len)
 {
-  bool success;
-  success = MQTT_uint8_callbackCore(&MaxAirHumidityThreshold, str, len);
+  bool convertion_from_str_success;
+  air_thr_manage.effective_max_thr = MaxAirMoistureThreshold;
+
+  convertion_from_str_success = MQTT_uint8_callbackCore(&MaxAirMoistureThreshold, str, len);
   
+  if(convertion_from_str_success == true)
+  {
+    setMaxThreshold_uint8_t(&air_thr_manage);
+  }
+  else
+  {
+    // Do nothing, continue
+  }
+
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    if(success)
+    if(convertion_from_str_success)
     {
-      printFetchedValue("MaxAirHumidityThreshold", MaxAirHumidityThreshold);
+      printFetchedValue("MaxAirMoistureThreshold", MaxAirMoistureThreshold);
     }
     else
     {
-      Serial.println("***__Ignoring an unvalid value for: MaxAirHumidityThreshold__***");
-      MQTTpub_valid_max_air_hum_thr.publish(MaxAirHumidityThreshold);
+      Serial.println("***__Ignoring an invalid value for: MaxAirHumidityThreshold__***");
+      MQTTpub_valid_max_air_hum_thr.publish(MaxAirMoistureThreshold);
     }
   #else
-    if(!success)
-      MQTTpub_valid_max_air_hum_thr.publish(MaxAirHumidityThreshold);
+    if(!convertion_from_str_success)
+    {
+      MQTTpub_valid_max_air_hum_thr.publish(MaxAirMoistureThreshold);
+    }
+    else
+    {
+      // Do nothing, continue
+    }
   #endif
 }
 
-void MQTTMinAirHumThr_callback(char* str, uint16_t len)
+void MQTTMinAirMoistThr_callback(char* str, uint16_t len)
 {
-  bool success;
-  success = MQTT_uint8_callbackCore(&MinAirHumidityThreshold, str, len);
-  
+  bool convertion_from_str_success;
+  air_thr_manage.effective_min_thr = MinAirMoistureThreshold;
+
+  convertion_from_str_success = MQTT_uint8_callbackCore(&MinAirMoistureThreshold, str, len);
+  if(convertion_from_str_success == true)
+  {
+    setMinThreshold_uint8_t(&air_thr_manage);
+  }
+  else
+  {
+    // Do nothing, continue
+  }
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    if(success)
+    if(convertion_from_str_success)
     {
-      printFetchedValue("MinAirHumidityThreshold", MinAirHumidityThreshold);
+      printFetchedValue("MinAirMoistureThreshold", MinAirMoistureThreshold);
     }
     else
     {
-      Serial.println("***__Ignoring an unvalid value for: MinAirHumidityThreshold__***");
-      MQTTpub_valid_min_air_hum_thr.publish(MinAirHumidityThreshold);
+      Serial.println("***__Ignoring an invalid value for: MinAirHumidityThreshold__***");
+      MQTTpub_valid_min_air_hum_thr.publish(MinAirMoistureThreshold);
     }
   #else
-    if(!success)
-      MQTTpub_valid_min_air_hum_thr.publish(MinAirHumidityThreshold);
+    if(!convertion_from_str_success)
+    {
+      MQTTpub_valid_min_air_hum_thr.publish(MinAirMoistureThreshold);
+    }
+    else
+    {
+      // Do nothing, continue
+    }
   #endif
 }
 // == int8_t ==
@@ -1112,7 +1665,7 @@ bool MQTT_int8_callbackCore(int8_t *variable_ptr, char* str, uint16_t len)
 
   if(SafeStrToInt32(str, len, &int32_value))
   {
-    if( INT8_MIN <= int32_value && int32_value <= INT8_MAX )
+    if( ((int32_t) INT8_MIN <= int32_value) && (int32_value <= (int32_t) INT8_MAX) )
     {
       *variable_ptr = (int8_t) int32_value;
       return true;
@@ -1123,43 +1676,77 @@ bool MQTT_int8_callbackCore(int8_t *variable_ptr, char* str, uint16_t len)
 
 void MQTTMaxTempThr_callback(char *str, uint16_t len)
 {
-  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    bool success;
-    success = MQTT_int8_callbackCore(&MaxTemperatureThreshold, str, len);
+  bool convertion_from_str_success;
+  temp_thr_manage.effective_max_thr = MaxTemperatureThreshold;
 
-    if(success)
+  convertion_from_str_success = MQTT_int8_callbackCore(&MaxTemperatureThreshold, str, len);
+
+  if(convertion_from_str_success == true)
+  {
+    setMaxThreshold_int8_t(&temp_thr_manage);
+  }
+  else
+  {
+    // Do nothing, continue
+  }
+
+  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+    if(convertion_from_str_success)
     {
       printFetchedValue("MaxTemperatureThreshold", MaxTemperatureThreshold);
     }
     else
     {
-      Serial.println("***__Ignoring an unvalid value for: MaxTemperatureThreshold__***");
+      Serial.println("***__Ignoring an invalid value for: MaxTemperatureThreshold__***");
       MQTTpub_valid_max_temp_thr.publish(MaxTemperatureThreshold);
     }
   #else
-    if(!success)
+    if(!convertion_from_str_success)
+    {
       MQTTpub_valid_max_temp_thr.publish(MaxTemperatureThreshold);
+    }
+    else
+    {
+      // Do nothing, continue
+    }
   #endif
 }
 
 void MQTTMinTempThr_callback(char *str, uint16_t len)
 {
-  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    bool success;
-    success = MQTT_int8_callbackCore(&MinTemperatureThreshold, str, len);
+  bool convertion_from_str_success;
+  temp_thr_manage.effective_min_thr = MinTemperatureThreshold;
 
-    if(success)
+  convertion_from_str_success = MQTT_int8_callbackCore(&MinTemperatureThreshold, str, len);
+
+  if(convertion_from_str_success == true)
+  {
+    setMinThreshold_int8_t(&temp_thr_manage);
+  }
+  else
+  {
+    // Do nothing, continue
+  }
+
+  #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+    if(convertion_from_str_success)
     {
       printFetchedValue("MinTemperatureThreshold", MinTemperatureThreshold);
     }
     else
     {
-      Serial.println("***__Ignoring an unvalid value for: MinTemperatureThreshold__***");
+      Serial.println("***__Ignoring an invalid value for: MinTemperatureThreshold__***");
       MQTTpub_valid_min_temp_thr.publish(MinTemperatureThreshold);
     }
   #else
-    if(!success)
+    if(!convertion_from_str_success)
+    {
       MQTTpub_valid_min_temp_thr.publish(MinTemperatureThreshold);
+    }
+    else
+    {
+      // Do nothing, continue
+    }
   #endif
 }
 
@@ -1170,12 +1757,18 @@ bool __isStrIntZero(char* str, uint16_t len){
   for ( uint16_t i = 0; i < len; i++ )
   {
 
-    if (isSpace(str[i]))
+    if (isSpace(str[i]) == true)
+    {
       continue;
-    else if (isDigit(str[i]) && str[i] == '0')
+    }
+    else if ((isDigit(str[i]) == true) && (str[i] == '0'))
+    {
       return true;
+    }
     else
+    {
       return false;
+    }
   
   }
 
@@ -1193,14 +1786,18 @@ bool SafeStrToInt32(char *str, uint16_t len, int32_t *int_value)
     On ESP32 the long long int type is made of two words (8 bytes,
     64 bits).
   */
-
+  errno = 0;
   int64_t int64_value = strtoll(str, nullptr, 10);
+  if (errno != 0)
+  {
+    return false;
+  }
 
   /* 
     Checking if the number is between the INT32 extremes
     guarantees it to be a 32 bit integer.
   */
-  if ( INT32_MIN <= int64_value && int64_value <= INT32_MAX )
+  if (((int64_t) INT32_MIN <= int64_value) && (int64_value <= (int64_t) INT32_MAX))
   {
     *int_value = (int32_t) int64_value;
     /*
@@ -1213,10 +1810,14 @@ bool SafeStrToInt32(char *str, uint16_t len, int32_t *int_value)
         return __isStrIntZero(str, len);
     }
     else
+    {
       return true;
+    }
   }
   else
+  {
     return false;
+  }
 }
 
 bool SafeStrToUInt32(char *str, uint16_t len, uint32_t *uint_value)
@@ -1230,15 +1831,19 @@ bool SafeStrToUInt32(char *str, uint16_t len, uint32_t *uint_value)
     On ESP32 the unsigned long long int type is made of two words 
     (8 bytes, 64 bits).
   */
+  errno = 0;
   uint64_t uint64_value = strtoull(str, nullptr, 10);
-
+  if(errno != 0)
+  {
+    return false;
+  }
   /* 
     Checking if the number is under the UINT32 maximum
     value guarantees it to be a 32 bit unsigned int.
   */
-  if ( uint64_value <= UINT32_MAX )
+  if (uint64_value <= (uint64_t) UINT32_MAX)
   {
-    *uint_value = (uint32_t) strtoull(str, nullptr, 10);
+    *uint_value = (uint32_t) uint64_value; 
     
     /*
       In case the value is zero, it is necessary to check
@@ -1250,8 +1855,505 @@ bool SafeStrToUInt32(char *str, uint16_t len, uint32_t *uint_value)
         return __isStrIntZero(str, len);
     }
     else
+    {
       return true;
+    }
   }
   else
+  {
     return false;
+  }
+}
+
+// ==== Functions for updating threshold with values fetched from MQTT protocol ====
+
+bool validThresholdsSetMax(intmax_t min, intmax_t max)
+{
+  return min < max;
+}
+
+bool validThresholdsSetMin(intmax_t max, intmax_t min)
+{
+  return min < max;
+}
+
+// == uint8_t == 
+void setMaxThreshold_uint8_t(struct threshold_setting_manage_uint8_t* threshold_setting_info)
+{
+  setThreshold_uint8_t(
+    (uint8_t*) threshold_setting_info->max_thr,  
+    threshold_setting_info->max_thr_readable_name,
+    &threshold_setting_info->effective_max_thr,
+    threshold_setting_info->min_thr_readable_name,
+    (uint8_t*) threshold_setting_info->min_thr,
+    &threshold_setting_info->pending_max_thr,
+    &threshold_setting_info->pending_max_thr_flag,
+    &threshold_setting_info->pending_min_thr,
+    &threshold_setting_info->pending_min_thr_flag,
+    threshold_setting_info->max_thr_topic_key,
+    threshold_setting_info->min_thr_topic_key,
+    validThresholdsSetMax);
+}
+
+void setMinThreshold_uint8_t(struct threshold_setting_manage_uint8_t* threshold_setting_info)
+{
+  setThreshold_uint8_t(
+    (uint8_t*) threshold_setting_info->min_thr, 
+    threshold_setting_info->min_thr_readable_name,
+    &threshold_setting_info->effective_min_thr,
+    threshold_setting_info->max_thr_readable_name,
+    (uint8_t*) threshold_setting_info->max_thr,
+    &threshold_setting_info->pending_min_thr,
+    &threshold_setting_info->pending_min_thr_flag,
+    &threshold_setting_info->pending_max_thr,
+    &threshold_setting_info->pending_max_thr_flag,
+    threshold_setting_info->min_thr_topic_key,
+    threshold_setting_info->max_thr_topic_key,
+    validThresholdsSetMin);
+}
+  
+void setThreshold_uint8_t(uint8_t* new_thr, 
+                          const char* thr_readable_name,
+                          uint8_t* effective_thr,
+                          const char* other_thr_readable_name,
+                          uint8_t* other_thr,
+                          uint8_t* pending_thr, 
+                          bool* pending_thr_flag, 
+                          uint8_t* pending_other_thr, 
+                          bool* pending_other_thr_flag, 
+                          const char* threshold_topic_key,
+                          const char* other_threshold_topic_key,
+                          bool (*validThresholdsFun) (intmax_t other_thr, intmax_t thr))
+{
+  bool discard = false;
+
+  *pending_thr_flag = false;    
+  if(validThresholdsFun(*other_thr, *new_thr) == true)
+  {
+    if(*pending_other_thr_flag == true)
+    {
+      if(validThresholdsFun(*pending_other_thr, *new_thr) == true)
+      {
+          
+          #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+            Serial.print("Pending ");
+            Serial.print(other_thr_readable_name);
+            Serial.print(" accepted: ");
+            Serial.println(*pending_other_thr);
+          #endif
+
+          *pending_other_thr_flag = false;
+          *other_thr = *pending_other_thr;
+          preferences.putUChar(other_threshold_topic_key, *other_thr);
+      }
+      else
+      {
+        // Put in pending new threshold value
+        discard = true;
+        *pending_thr_flag = true;
+        *pending_thr = *new_thr; 
+        #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+          Serial.print("Threshold ");
+          Serial.print(thr_readable_name); 
+          Serial.print(" pending with value: ");
+          Serial.println(*pending_thr);
+        #endif
+      }
+    }
+    else{}
+
+    if(discard == true)
+    {
+      *new_thr = *effective_thr;  // Resetting to valid value
+    }
+    else
+    {
+      // Valid new threshold value
+
+      preferences.putUChar(threshold_topic_key, *new_thr);
+    }
+  }
+  else
+  {
+    #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+      Serial.print("Not valid ");
+      Serial.print(thr_readable_name);
+      Serial.print(" threshold (with effective other threshold): ");
+      Serial.println(*new_thr);
+    #endif
+
+    if(*pending_other_thr_flag == true && validThresholdsFun(*pending_other_thr, *new_thr) == true)
+    {
+      //*pending_thr_flag = false;
+      *pending_other_thr_flag = false;
+
+      #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+        Serial.print("Valid ");
+        Serial.print(thr_readable_name);
+        Serial.print(" (with pending other threshold): ");
+        Serial.println(*new_thr);
+        Serial.print("Pending other threshold accepted: ");
+        Serial.println(*pending_other_thr);
+      #endif
+      *other_thr = *pending_other_thr;
+
+      preferences.putUChar(other_threshold_topic_key, *other_thr);
+      preferences.putUChar(threshold_topic_key, *new_thr);
+  
+    }
+    else
+    {
+      // Put new thr in pending state (waiting for a valid other threshold)
+      *pending_thr_flag = true;
+      *pending_thr = *new_thr;
+      #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+        Serial.print("Threshold ");
+        Serial.print(thr_readable_name); 
+        Serial.print(" pending with value: ");
+        Serial.println(*pending_thr);
+      #endif
+      *new_thr = *effective_thr;  // Resetting to valid value
+    }
+
+  }
+}
+
+// == uint32_t == 
+void setMaxThreshold_uint32_t(struct threshold_setting_manage_uint32_t* threshold_setting_info)
+{
+  setThreshold_uint32_t(
+    (uint32_t*) threshold_setting_info->max_thr,  
+    threshold_setting_info->max_thr_readable_name,
+    &threshold_setting_info->effective_max_thr,
+    threshold_setting_info->min_thr_readable_name,
+    (uint32_t*) threshold_setting_info->min_thr,
+    &threshold_setting_info->pending_max_thr,
+    &threshold_setting_info->pending_max_thr_flag,
+    &threshold_setting_info->pending_min_thr,
+    &threshold_setting_info->pending_min_thr_flag,
+    threshold_setting_info->max_thr_topic_key,
+    threshold_setting_info->min_thr_topic_key,
+    validThresholdsSetMax);
+}
+
+void setMinThreshold_uint32_t(struct threshold_setting_manage_uint32_t* threshold_setting_info)
+{
+  setThreshold_uint32_t(
+    (uint32_t*) threshold_setting_info->min_thr, 
+    threshold_setting_info->min_thr_readable_name,
+    &threshold_setting_info->effective_min_thr,
+    threshold_setting_info->max_thr_readable_name,
+    (uint32_t*) threshold_setting_info->max_thr,
+    &threshold_setting_info->pending_min_thr,
+    &threshold_setting_info->pending_min_thr_flag,
+    &threshold_setting_info->pending_max_thr,
+    &threshold_setting_info->pending_max_thr_flag,
+    threshold_setting_info->min_thr_topic_key,
+    threshold_setting_info->max_thr_topic_key,
+    validThresholdsSetMin);
+}
+  
+void setThreshold_uint32_t(uint32_t* new_thr, 
+                          const char* thr_readable_name,
+                          uint32_t* effective_thr,
+                          const char* other_thr_readable_name,
+                          uint32_t* other_thr,
+                          uint32_t* pending_thr, 
+                          bool* pending_thr_flag, 
+                          uint32_t* pending_other_thr, 
+                          bool* pending_other_thr_flag, 
+                          const char* threshold_topic_key,
+                          const char* other_threshold_topic_key,
+                          bool (*validThresholdsFun) (intmax_t other_thr, intmax_t thr))
+{
+  bool discard = false;
+
+  *pending_thr_flag = false;    
+  if(validThresholdsFun(*other_thr, *new_thr) == true)
+  {
+    if(*pending_other_thr_flag == true)
+    {
+      if(validThresholdsFun(*pending_other_thr, *new_thr) == true)
+      {
+          
+          #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+            Serial.print("Pending ");
+            Serial.print(other_thr_readable_name);
+            Serial.print(" accepted: ");
+            Serial.println(*pending_other_thr);
+          #endif
+
+          *pending_other_thr_flag = false;
+          *other_thr = *pending_other_thr;
+          preferences.putUInt(other_threshold_topic_key, *other_thr);
+      }
+      else
+      {
+        // Put in pending new threshold value
+        discard = true;
+        *pending_thr_flag = true;
+        *pending_thr = *new_thr; 
+        #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+          Serial.print("Threshold ");
+          Serial.print(thr_readable_name); 
+          Serial.print(" pending with value: ");
+          Serial.println(*pending_thr);
+        #endif
+      }
+    }
+    else{}
+
+    if(discard == true)
+    {
+      *new_thr = *effective_thr;  // Resetting to valid value
+    }
+    else
+    {
+      // Valid new threshold value
+
+      preferences.putUInt(threshold_topic_key, *new_thr);
+    }
+  }
+  else
+  {
+    #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+      Serial.print("Not valid ");
+      Serial.print(thr_readable_name);
+      Serial.print(" threshold (with effective other threshold): ");
+      Serial.println(*new_thr);
+    #endif
+
+    if(*pending_other_thr_flag == true && validThresholdsFun(*pending_other_thr, *new_thr) == true)
+    {
+      //*pending_thr_flag = false;
+      *pending_other_thr_flag = false;
+
+      #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+        Serial.print("Valid ");
+        Serial.print(thr_readable_name);
+        Serial.print(" (with pending other threshold): ");
+        Serial.println(*new_thr);
+        Serial.print("Pending other threshold accepted: ");
+        Serial.println(*pending_other_thr);
+      #endif
+      *other_thr = *pending_other_thr;
+
+      preferences.putUInt(other_threshold_topic_key, *other_thr);
+      preferences.putUInt(threshold_topic_key, *new_thr);
+  
+    }
+    else
+    {
+      // Put new thr in pending state (waiting for a valid other threshold)
+      *pending_thr_flag = true;
+      *pending_thr = *new_thr;
+      #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+        Serial.print("Threshold ");
+        Serial.print(thr_readable_name); 
+        Serial.print(" pending with value: ");
+        Serial.println(*pending_thr);
+      #endif
+      *new_thr = *effective_thr;  // Resetting to valid value
+    }
+
+  }
+}
+
+// == int8_t ==
+void setMaxThreshold_int8_t(struct threshold_setting_manage_int8_t* threshold_setting_info)
+{
+  setThreshold_int8_t(
+    (int8_t*) threshold_setting_info->max_thr,  
+    threshold_setting_info->max_thr_readable_name,
+    &threshold_setting_info->effective_max_thr,
+    threshold_setting_info->min_thr_readable_name,
+    (int8_t*) threshold_setting_info->min_thr,
+    &threshold_setting_info->pending_max_thr,
+    &threshold_setting_info->pending_max_thr_flag,
+    &threshold_setting_info->pending_min_thr,
+    &threshold_setting_info->pending_min_thr_flag,
+    threshold_setting_info->max_thr_topic_key,
+    threshold_setting_info->min_thr_topic_key,
+    validThresholdsSetMax);
+}
+
+void setMinThreshold_int8_t(struct threshold_setting_manage_int8_t* threshold_setting_info)
+{
+  setThreshold_int8_t(
+    (int8_t*) threshold_setting_info->min_thr, 
+    threshold_setting_info->min_thr_readable_name,
+    &threshold_setting_info->effective_min_thr,
+    threshold_setting_info->max_thr_readable_name,
+    (int8_t*) threshold_setting_info->max_thr,
+    &threshold_setting_info->pending_min_thr,
+    &threshold_setting_info->pending_min_thr_flag,
+    &threshold_setting_info->pending_max_thr,
+    &threshold_setting_info->pending_max_thr_flag,
+    threshold_setting_info->min_thr_topic_key,
+    threshold_setting_info->max_thr_topic_key,
+    validThresholdsSetMin);
+}
+ 
+void setThreshold_int8_t(int8_t* new_thr, 
+                          const char* thr_readable_name,
+                          int8_t* effective_thr,
+                          const char* other_thr_readable_name,
+                          int8_t* other_thr,
+                          int8_t* pending_thr, 
+                          bool* pending_thr_flag, 
+                          int8_t* pending_other_thr, 
+                          bool* pending_other_thr_flag, 
+                          const char* threshold_topic_key,
+                          const char* other_threshold_topic_key,
+                          bool (*validThresholdsFun) (intmax_t other_thr, intmax_t thr))
+{
+  bool discard = false;
+
+  *pending_thr_flag = false;    
+  if(validThresholdsFun(*other_thr, *new_thr) == true)
+  {
+    if(*pending_other_thr_flag == true)
+    {
+      if(validThresholdsFun(*pending_other_thr, *new_thr) == true)
+      {
+          
+          #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+            Serial.print("Pending ");
+            Serial.print(other_thr_readable_name);
+            Serial.print(" accepted: ");
+            Serial.println(*pending_other_thr);
+          #endif
+
+          *pending_other_thr_flag = false;
+          *other_thr = *pending_other_thr;
+          preferences.putChar(other_threshold_topic_key, *other_thr);
+      }
+      else
+      {
+        // Put in pending new threshold value
+        discard = true;
+        *pending_thr_flag = true;
+        *pending_thr = *new_thr; 
+        #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+          Serial.print("Threshold ");
+          Serial.print(thr_readable_name); 
+          Serial.print(" pending with value: ");
+          Serial.println(*pending_thr);
+        #endif
+      }
+    }
+    else{}
+
+    if(discard == true)
+    {
+      *new_thr = *effective_thr;  // Resetting to valid value
+    }
+    else
+    {
+      // Valid new threshold value
+
+      preferences.putChar(threshold_topic_key, *new_thr);
+    }
+  }
+  else
+  {
+    #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+      Serial.print("Not valid ");
+      Serial.print(thr_readable_name);
+      Serial.print(" threshold (with effective other threshold): ");
+      Serial.println(*new_thr);
+    #endif
+
+    if(*pending_other_thr_flag == true && validThresholdsFun(*pending_other_thr, *new_thr) == true)
+    {
+      //*pending_thr_flag = false;
+      *pending_other_thr_flag = false;
+
+      #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+        Serial.print("Valid ");
+        Serial.print(thr_readable_name);
+        Serial.print(" (with pending other threshold): ");
+        Serial.println(*new_thr);
+        Serial.print("Pending other threshold accepted: ");
+        Serial.println(*pending_other_thr);
+      #endif
+      *other_thr = *pending_other_thr;
+
+      preferences.putChar(other_threshold_topic_key, *other_thr);
+      preferences.putChar(threshold_topic_key, *new_thr);
+  
+    }
+    else
+    {
+      // Put new thr in pending state (waiting for a valid other threshold)
+      *pending_thr_flag = true;
+      *pending_thr = *new_thr;
+      #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+        Serial.print("Threshold ");
+        Serial.print(thr_readable_name); 
+        Serial.print(" pending with value: ");
+        Serial.println(*pending_thr);
+      #endif
+      *new_thr = *effective_thr;  // Resetting to valid value
+    }
+
+  }
+}
+
+void init_setting_manage_struct_uint8_t(struct threshold_setting_manage_uint8_t* threshold_setting_manage, 
+                                        uint8_t* min_thr,
+                                        uint8_t* max_thr,
+                                        const char* minThresholdReadableName,
+                                        const char* maxThresholdReadableName,
+                                        const char* minThresholdTopicKey,
+                                        const char* maxThresholdTopicKey)
+{
+  threshold_setting_manage->min_thr = min_thr;
+  threshold_setting_manage->max_thr = max_thr;
+  threshold_setting_manage->effective_min_thr = *min_thr;
+  threshold_setting_manage->effective_max_thr = *max_thr;
+  threshold_setting_manage->pending_max_thr_flag = false;
+  threshold_setting_manage->pending_min_thr_flag = false;
+  threshold_setting_manage->min_thr_readable_name = minThresholdReadableName;
+  threshold_setting_manage->max_thr_readable_name = maxThresholdReadableName;
+  threshold_setting_manage->min_thr_topic_key = minThresholdTopicKey;
+  threshold_setting_manage->max_thr_topic_key = maxThresholdTopicKey;
+}
+void init_setting_manage_struct_uint32_t(struct threshold_setting_manage_uint32_t* threshold_setting_manage, 
+                                        uint32_t* min_thr,
+                                        uint32_t* max_thr,
+                                        const char* minThresholdReadableName,
+                                        const char* maxThresholdReadableName,
+                                        const char* minThresholdTopicKey,
+                                        const char* maxThresholdTopicKey)
+{
+  threshold_setting_manage->min_thr = min_thr;
+  threshold_setting_manage->max_thr = max_thr;
+  threshold_setting_manage->effective_min_thr = *min_thr;
+  threshold_setting_manage->effective_max_thr = *max_thr;
+  threshold_setting_manage->pending_max_thr_flag = false;
+  threshold_setting_manage->pending_min_thr_flag = false;
+  threshold_setting_manage->min_thr_readable_name = minThresholdReadableName;
+  threshold_setting_manage->max_thr_readable_name = maxThresholdReadableName;
+  threshold_setting_manage->min_thr_topic_key = minThresholdTopicKey;
+  threshold_setting_manage->max_thr_topic_key = maxThresholdTopicKey;
+}
+void init_setting_manage_struct_int8_t(struct threshold_setting_manage_int8_t* threshold_setting_manage, 
+                                        int8_t* min_thr,
+                                        int8_t* max_thr,
+                                        const char* minThresholdReadableName,
+                                        const char* maxThresholdReadableName,
+                                        const char* minThresholdTopicKey,
+                                        const char* maxThresholdTopicKey)
+{
+  threshold_setting_manage->min_thr = min_thr;
+  threshold_setting_manage->max_thr = max_thr;
+  threshold_setting_manage->effective_min_thr = *min_thr;
+  threshold_setting_manage->effective_max_thr = *max_thr;
+  threshold_setting_manage->pending_max_thr_flag = false;
+  threshold_setting_manage->pending_min_thr_flag = false;
+  threshold_setting_manage->min_thr_readable_name = minThresholdReadableName;
+  threshold_setting_manage->max_thr_readable_name = maxThresholdReadableName;
+  threshold_setting_manage->min_thr_topic_key = minThresholdTopicKey;
+  threshold_setting_manage->max_thr_topic_key = maxThresholdTopicKey;
 }

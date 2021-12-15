@@ -9,6 +9,7 @@
 #include "secrets.h"
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
+#include <Preferences.h>
 
 #if CONFIG_FREERTOS_UNICORE
   #define ARDUINO_RUNNING_CORE 0
@@ -30,6 +31,9 @@ have value zero.
 */ 
 #define DEBUG                                1  // Enables the debug mode 
 
+  // Preferences
+  #define DEBUG_PREFERENCES                DEBUG && ( 1 )
+
   // Queues
   #define PRINT_COORDINATOR_QUEUE_USAGE    DEBUG && ( 0 )    
   
@@ -50,9 +54,8 @@ have value zero.
 
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
     #define printFetchedValue(var_name, updated_variable) {\
-                                                            Serial.print("Fetched a new value for ");\
                                                             Serial.print(var_name);\
-                                                            Serial.print(": ");\
+                                                            Serial.print(" updated to: ");\
                                                             Serial.println(updated_variable);\
                                                           }
   #endif
@@ -88,9 +91,16 @@ have value zero.
 // WiFi credentials
 const char* ssid = SECRET_SSID;
 const char* password = SECRET_PASS;
+
 // MQTT server
 const char* AIO_SERVER = SECRET_SERVER_ADDR;
 const int AIO_SERVERPORT = SECRET_SERVER_PORT;
+
+// Minimum irrigator execution time allowed
+#define IRRIG_MIN_ACTUATION_DURATION 1000
+
+// Setup connection configuration
+#define SETUP_MAX_CONNECTION_ATTEMPTS 5
 
 // WiFi connection configuration
 #define WiFiConnectAttemptDelay 5000
@@ -105,7 +115,6 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 
 // MQTT subscribe
 #define MQTT_SUBSCRIPTION_READING_TIMEOUT 1000
-
 /*--------------------------------------------------*/
 /*------------------- MQTT topics ------------------*/
 /*--------------------------------------------------*/
@@ -115,8 +124,8 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 #define SETT_TOPIC        MAIN_TOPIC "/settings"
 // Sensor topics
 #define SENS_TEMP_TOPIC        SENS_TOPIC "/f/temperature"
-#define SENS_AIR_HUM_TOPIC     SENS_TOPIC "/f/airhumidity"
-#define SENS_SOIL_HUM_TOPIC    SENS_TOPIC "/f/soilhumidity"
+#define SENS_AIR_MOIST_TOPIC     SENS_TOPIC "/f/airhumidity"
+#define SENS_SOIL_MOIST_TOPIC    SENS_TOPIC "/f/soilhumidity"
 #define SENS_LUX_TOPIC         SENS_TOPIC "/f/lux"
 // Actuator topics (Last activation logs?)
 
@@ -125,13 +134,13 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 // --Thresholds
 #define THRESHOLDS_TOPIC SETT_TOPIC "/thresholds"
 // ----Soil humidity thresholds
-#define SOIL_HUM_THR_TOPIC        THRESHOLDS_TOPIC "/soilhumidity"
-#define MIN_SOIL_HUM_THR_TOPIC    SOIL_HUM_THR_TOPIC "/min"
-#define MAX_SOIL_HUM_THR_TOPIC    SOIL_HUM_THR_TOPIC "/max"
+#define SOIL_MOIST_THR_TOPIC        THRESHOLDS_TOPIC "/soilhumidity"
+#define MIN_SOIL_MOIST_THR_TOPIC    SOIL_MOIST_THR_TOPIC "/min"
+#define MAX_SOIL_MOIST_THR_TOPIC    SOIL_MOIST_THR_TOPIC "/max"
 // ----Air humidity thresholds
-#define AIR_HUM_THR_TOPIC         THRESHOLDS_TOPIC "/airhumidity"
-#define MIN_AIR_HUM_THR_TOPIC     AIR_HUM_THR_TOPIC "/min"
-#define MAX_AIR_HUM_THR_TOPIC     AIR_HUM_THR_TOPIC "/max"
+#define AIR_MOIST_THR_TOPIC         THRESHOLDS_TOPIC "/airhumidity"
+#define MIN_AIR_MOIST_THR_TOPIC     AIR_MOIST_THR_TOPIC "/min"
+#define MAX_AIR_MOIST_THR_TOPIC     AIR_MOIST_THR_TOPIC "/max"
 // ----Temperature thresholds
 #define TEMPERATURE_THR_TOPIC     THRESHOLDS_TOPIC "/temperature"
 #define MIN_TEMP_THR_TOPIC        TEMPERATURE_THR_TOPIC "/min"
@@ -147,6 +156,9 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 #define IRRIG_ACT_DURATION_TOPIC  IRRIG_ACT_TOPIC "/duration"
 #define IRRIG_ACT_DELAY_TOPIC     IRRIG_ACT_TOPIC "/delay"
 
+// Preferences
+#define PREFERENCES_SETTINGS_SCOPE_NAME "settings"
+
 /*--------------------------------------------------*/
 /*------------------ Pin Defines -------------------*/
 /*--------------------------------------------------*/
@@ -156,6 +168,7 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 // Actuators
 #define irrigatorPIN 32 // Controls the custom PCB in charge of the irrigator management
 #define lightsPIN 33 // Controls a relè designed to switch on and off a 220V growlamp
+
 // LED signals
 #define connectionLED 18 // ON as long as the system doensn't recognize connectivity issues
 #define irrigatorLED 17 // ON as long as the irrigator is active
@@ -164,13 +177,13 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 /*--------------------------------------------------*/
 /*------ MQTT Default configurable parameters ------*/
 /*--------------------------------------------------*/
-#define DEFAULT_IrrigatorActivationThreshold 30
-#define DEFAULT_MaxSoilHumidityThreshold 80
-#define DEFAULT_MinAirHumidityThreshold 10
-#define DEFAULT_MaxAirHumidityThreshold 80
+#define DEFAULT_MinAirMoistureThreshold 10
+#define DEFAULT_MaxAirMoistureThreshold 80
 #define DEFAULT_MinTemperatureThreshold 15
 #define DEFAULT_MaxTemperatureThreshold 45
-#define DEFAULT_IrrigatorExecutionTime 5000
+#define DEFAULT_MinSoilMoistureThreshold 30
+#define DEFAULT_MaxSoilMoistureThreshold 80
+#define DEFAULT_IrrigatorActuationDuration 5000
 #define DEFAULT_IrrigatorBetweenActivationsDelay 10000
 #define DEFAULT_LightsActivationThreshold 30
 #define DEFAULT_LightsDeactivationThreshold 80
@@ -189,7 +202,7 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 /*--------------------------------------------------*/
 /*----------------- Queue Config -------------------*/
 /*--------------------------------------------------*/
-#define coordinator_queue_len 10 // Coordinator queue length
+#define coordinator_queue_len Amount_of_sensor_ids*2 // Coordinator queue length
 #define MQTTpub_queue_len 10 
 
 /*--------------------------------------------------*/
@@ -222,6 +235,8 @@ struct sensor_msg{
 struct MQTT_subscription{
   Adafruit_MQTT_Subscribe sub_obj;
   void (*callback) (char*, uint16_t);
+  uint32_t default_setting_value;
+  void* setting_variable;
 };
 
 #endif // S_GREENHOUSE_CONFIG_H -- End of the header file
