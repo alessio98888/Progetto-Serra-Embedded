@@ -62,7 +62,7 @@ have value zero.
 
   // Sensors
   #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
-  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 0 ) // Enables verbose sensor output
+  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 1 ) // Enables verbose sensor output
 
   #if DEBUG_SENSORS
     #define sensorSim() ((float32_t) random(0,100)) // This *SHOULD* be substituted with a regular function according to the MISRA C guidelines
@@ -85,19 +85,9 @@ have value zero.
 #define SENSOR_TASKS_PRIORITY 1
 #define ACTUATOR_TASKS_PRIORITY 5
 
-/*--------------------------------------------------*/
-/*----------- Connectivity configuration -----------*/
-/*--------------------------------------------------*/
-// WiFi credentials
-const char* ssid = SECRET_SSID;
-const char* password = SECRET_PASS;
-
-// MQTT server
-const char* AIO_SERVER = SECRET_SERVER_ADDR;
-const int AIO_SERVERPORT = SECRET_SERVER_PORT;
-
 // Minimum irrigator execution time allowed
 #define IRRIG_MIN_ACTUATION_DURATION 1000
+#define IRRIG_MIN_ACTUATION_DELAY 1000
 
 // Setup connection configuration
 #define SETUP_MAX_CONNECTION_ATTEMPTS 5
@@ -158,6 +148,7 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 
 // Preferences
 #define PREFERENCES_SETTINGS_SCOPE_NAME "settings"
+#define MAX_CHARS_FOR_TOPIC_KEY 2
 
 /*--------------------------------------------------*/
 /*------------------ Pin Defines -------------------*/
@@ -191,7 +182,7 @@ const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 /*--------------------------------------------------*/
 /*--------- Task Periods(in milliseconds) ----------*/
 /*--------------------------------------------------*/
-#define CoordinatorPeriod 500
+#define CoordinatorPeriod 5000
 #define MQTTPublishPeriod 2500
 #define MQTTSubscribePeriod 10000
 #define DHT11TemperaturePeriod 5000 // 5 sec -- Temporary debug value

@@ -35,14 +35,16 @@ void TaskMQTTfetchSubscriptions( void *pvParameters );
 /*--------------------------------------------------*/
 /*-------------- Function prototypes----------------*/
 /*--------------------------------------------------*/
+void loop(void);
+void setup(void);
 void connectWiFi(void);
 void connectMQTT(void);
 void MQTTQueueSend( sensor_msg sensor_reading_struct );
 bool MQTTPublishMessage( Adafruit_MQTT_Publish MQTT_topic_pub, float32_t msg);
 void MQTTSetSubscriptions(void);
 void MQTTFetchSubscriptions(const char* preferencesScopeName, int16_t timeout);
-// Protocol functions for the updating thresholds from MQTT
 
+// Protocol functions for the updating thresholds from MQTT
 bool validThresholdsSetMax(intmax_t min, intmax_t max);
 bool validThresholdsSetMin(intmax_t max, intmax_t min);
 void init_setting_manage_structs(void);
@@ -141,10 +143,20 @@ void MQTTMaxTempThr_callback(char *str, uint16_t len);
 void MQTTMinTempThr_callback(char *str, uint16_t len);
 
 // Safe conversion functions
+bool isStrIntZero(char* str, uint16_t len);
 bool SafeStrToInt32(char *str, uint16_t len, int32_t *int_value);
 bool SafeStrToUInt32(char *str, uint16_t len, uint32_t *uint_value);
 void MQTTSetSubscriptions(void);
+/*--------------------------------------------------*/
+/*----------- Connectivity configuration -----------*/
+/*--------------------------------------------------*/
+// WiFi credentials
+static const char* ssid = SECRET_SSID;
+static const char* password = SECRET_PASS;
 
+// MQTT server
+static const char* AIO_SERVER = SECRET_SERVER_ADDR;
+static const int AIO_SERVERPORT = SECRET_SERVER_PORT;
 
 /*--------------------------------------------------*/
 /*----------------- Queue Handles ------------------*/
@@ -346,7 +358,7 @@ static MQTT_subscription *MQTT_subscription_array[MAXSUBSCRIPTIONS] = {
 /*------------ Digital sensors Config --------------*/
 /*--------------------------------------------------*/
 // Create a DHT object called dht on the pin and with the sensor type you’ve specified previously
-DHT dht(DHT11PIN, DHT11);
+static DHT dht(DHT11PIN, DHT11);
 
 /*--------------------------------------------------*/
 /*----------------- Boolean flags ------------------*/
@@ -358,11 +370,8 @@ static Preferences preferences;
 // Contains the const char* value for the integer i for every integer i from 0 to MAXSUBSCRIPTIONS-1
 static const char* int_to_charpointer[MAXSUBSCRIPTIONS];
 
-// Sufficient size of the string that needs to represent an integer with value up to MAXSUBSCRIPTIONS-1
-static const uint8_t MAX_CHARS_FOR_TOPIC_KEY = snprintf( NULL, 0, "%d", MAXSUBSCRIPTIONS-1 ) + 1;
-
 // the setup function runs once when you press reset or power the board
-void setup() 
+void setup(void) 
 {
   
   // initialize serial communication at 115200 bits per second:
@@ -380,7 +389,7 @@ void setup()
     ,  &task_handle_Connect
     ,  ARDUINO_RUNNING_CORE);
 
-  for(uint8_t i = 0; i < SETUP_MAX_CONNECTION_ATTEMPTS; i++)
+  for(uint8_t i = 0; i < (uint8_t) SETUP_MAX_CONNECTION_ATTEMPTS; i++)
   {
     if((WiFi.status() == WL_CONNECTED) && (mqtt.ping()))
     {
@@ -455,8 +464,8 @@ void setup()
   lightsOn = false;
 
   // Queue creation
-  coordinator_queue = xQueueCreate(coordinator_queue_len, sizeof(struct sensor_msg));
-  MQTTpub_queue = xQueueCreate(MQTTpub_queue_len, sizeof(struct sensor_msg));
+  coordinator_queue = xQueueCreate((UBaseType_t) coordinator_queue_len, sizeof(struct sensor_msg));
+  MQTTpub_queue = xQueueCreate((UBaseType_t) MQTTpub_queue_len, sizeof(struct sensor_msg));
 
   // Necessary initializations to perform sensor readings
   dht.begin();
@@ -556,7 +565,7 @@ void setup()
 
 }
 
-void loop()
+void loop(void)
 {
   // Empty. Things are done in Tasks.
 }
@@ -581,11 +590,11 @@ void TaskCoordinator(void *pvParameters)
   
   // Array of flags signaling the state detected by each sensor during
   // their last read, true if it was a bad state, false otherwise 
-  bool BadSensorStateArray[Amount_of_sensor_ids] = { false }; 
+  bool BadSensorStateArray[Amount_of_sensor_ids] = { 0 }; 
 
   for (;;) 
   {
-    for(uint8_t i = 0; i < Amount_of_sensor_ids; i++)
+    for(uint8_t i = 0; i < (uint8_t) Amount_of_sensor_ids; i++)
     {
       #if PRINT_COORDINATOR_QUEUE_USAGE
         printQueueUsageInfo(coordinator_queue, "Coordinator queue");
@@ -604,6 +613,8 @@ void TaskCoordinator(void *pvParameters)
             #endif
           #endif
           
+          MQTTQueueSend( sensor_reading_struct );
+
           // If a bad state is detected
           if ( sensor_reading_struct.sensor_reading < MinTemperatureThreshold ||\
               sensor_reading_struct.sensor_reading > MaxTemperatureThreshold   )
@@ -703,7 +714,11 @@ void TaskCoordinator(void *pvParameters)
         default:
           break;
       }
+      
     }
+    #if SENSORS_VERBOSE_DEBUG
+      Serial.println("==================================");
+    #endif
     /* 
       Update the status of the led signaling possible dangerous states of
       the greenhouse.
@@ -713,7 +728,7 @@ void TaskCoordinator(void *pvParameters)
     */
     if ( !ghStateWarningLED_ON )
     {
-      for ( uint8_t i = 0; i < Amount_of_sensor_ids; i++ )
+      for ( uint8_t i = 0; i < (uint8_t) Amount_of_sensor_ids; i++ )
       {
         if ( BadSensorStateArray[i] == true)
         {
@@ -728,7 +743,7 @@ void TaskCoordinator(void *pvParameters)
     {    // a bad state, then, if there are no more bad states, turn it OFF.
       bool bad_state = false; // 
 
-      for ( uint8_t i = 0; i < Amount_of_sensor_ids; i++ )
+      for ( uint8_t i = 0; i < (uint8_t) Amount_of_sensor_ids; i++ )
       {
         if ( BadSensorStateArray[i] == true)
         {
@@ -742,7 +757,7 @@ void TaskCoordinator(void *pvParameters)
         digitalWrite(greenhouseStateWarningLED, LOW);
       }
     }
-     
+    
     vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);
 
     #if PRINT_TASK_MEMORY_USAGE
@@ -754,7 +769,6 @@ void TaskCoordinator(void *pvParameters)
 
 void TaskReadDHT11Temperature(void *pvParameters)
 {
-  (void) pvParameters;
 
   /*
     Read temperature as Celsius (the default)
@@ -1048,14 +1062,11 @@ void TaskMQTTpublish( void* pvParameters )
   (void) pvParameters;
 
   struct sensor_msg sensor_reading_struct;
-  bool publishReturnValue;  // misra c 2012 Rule 17.7: The return value of a non-void function shall be used
   for (;;)
   {
-    
-
     if(mqtt.ping() == true)
     {
-      for( uint8_t i = 0; i < MQTT_PUBLISH_PER_EXECUTION ; i++)
+      for( uint8_t i = 0; i < (uint8_t) MQTT_PUBLISH_PER_EXECUTION ; i++)
       {
         if(xQueueReceive(MQTTpub_queue, &sensor_reading_struct, portMAX_DELAY) != pdPASS)
         {
@@ -1065,19 +1076,19 @@ void TaskMQTTpublish( void* pvParameters )
         switch (sensor_reading_struct.sensor)
         {
           case Sensor_Id_DHT11Temperature:
-            publishReturnValue = MQTTPublishMessage(MQTTpub_temp, sensor_reading_struct.sensor_reading);
+            (void) MQTTPublishMessage(MQTTpub_temp, sensor_reading_struct.sensor_reading);
             break;
           
           case Sensor_Id_DHT11Humidity:
-            publishReturnValue = MQTTPublishMessage(MQTTpub_air_hum, sensor_reading_struct.sensor_reading);
+            (void) MQTTPublishMessage(MQTTpub_air_hum, sensor_reading_struct.sensor_reading);
             break;
           
           case Sensor_Id_YL69SoilHumidity:
-            publishReturnValue = MQTTPublishMessage(MQTTpub_soil_hum, sensor_reading_struct.sensor_reading);
+            (void) MQTTPublishMessage(MQTTpub_soil_hum, sensor_reading_struct.sensor_reading);
             break;
 
           case Sensor_Id_Lux:
-            publishReturnValue = MQTTPublishMessage(MQTTpub_lux, sensor_reading_struct.sensor_reading);
+            (void) MQTTPublishMessage(MQTTpub_lux, sensor_reading_struct.sensor_reading);
             break;
 
           default:
@@ -1126,16 +1137,17 @@ void TaskMQTTfetchSubscriptions( void *pvParameters )
 /*--------------------------------------------------*/
 /*------------------- Functions --------------------*/
 /*--------------------------------------------------*/
+static char topic_keys[MAXSUBSCRIPTIONS][2];
 void init_get_key_from_topic(void)
 {
   /*
     Neccessary initialization for the 'get_key_from_topic' function
   */
-  char str[MAX_CHARS_FOR_TOPIC_KEY];  
   for(uint8_t i = 0; i < MAXSUBSCRIPTIONS; i++)
   {
-    (void) sprintf(str, "%d", i);
-    int_to_charpointer[i] = (const char*) strdup(str);  
+    topic_keys[i][0] = (char) i;
+    topic_keys[i][1] = '\0';
+    int_to_charpointer[i] = (const char*) topic_keys[i];
   }
 }
 
@@ -1179,7 +1191,6 @@ void get_settings_from_preferences(void)
   init_setting_manage_struct_uint32_t(&lights_thr_manage, &LightsActivationThreshold, &LightsDeactivationThreshold, "LightsActivationThreshold", "LightsDeactivationThreshold", LightsActivationThreshold_TopicKey, LightsDeactivationThreshold_TopicKey);
   init_setting_manage_struct_int8_t(&temp_thr_manage, &MinTemperatureThreshold, &MaxTemperatureThreshold, "MinTemperatureThreshold", "MaxTemperatureThreshold", MinTemperatureThreshold_TopicKey, MaxTemperatureThreshold_TopicKey);
 }
-
 void connectWiFi()
 {
   wl_status_t status = WL_DISCONNECTED; // set the known WiFi status to disconneted
@@ -1217,7 +1228,7 @@ void connectMQTT()
 
     int8_t ret;
 
-    for ( uint8_t i = 0; i < MAX_CONNECTION_ATTEMPTS; i++ )
+    for ( uint8_t i = 0; i < (uint8_t) MAX_CONNECTION_ATTEMPTS; i++ )
     { 
       ret = mqtt.connect();
       if(ret == 0)
@@ -1271,7 +1282,7 @@ void MQTTQueueSend( sensor_msg sensor_reading_struct )
 
 bool MQTTPublishMessage( Adafruit_MQTT_Publish MQTT_topic_pub, float32_t msg)
 {
-  for( uint8_t i = 0; i < MQTT_MAX_PUBLISHING_ATTEMPTS; i++ )
+  for( uint8_t i = 0; i < (uint8_t) MQTT_MAX_PUBLISHING_ATTEMPTS; i++ )
   {  
     if(MQTT_topic_pub.publish(msg) == true){
       return true;
@@ -1351,20 +1362,21 @@ bool MQTT_uint32_callbackCore(uint32_t *variable_ptr, char* str, uint16_t len)
 void MQTTIrrigActuationDuration_callback(char* str, uint16_t len)
 {
   bool convertion_from_string_success;
+  bool semantic_error = false;
   uint32_t effectiveIrrigatorActuationDuration = IrrigatorActuationDuration;
 
   convertion_from_string_success = MQTT_uint32_callbackCore(&IrrigatorActuationDuration, str, len);
 
   if(convertion_from_string_success == true)
   {
-    if(IrrigatorActuationDuration >= IRRIG_MIN_ACTUATION_DURATION)
+    if(IrrigatorActuationDuration >= (uint32_t) IRRIG_MIN_ACTUATION_DURATION)
     {
       preferences.putUInt(IrrigatorActuationDuration_TopicKey, IrrigatorActuationDuration);
     }
     else
     {
+      semantic_error = true;
       IrrigatorActuationDuration = effectiveIrrigatorActuationDuration;
-      MQTTpub_valid_irrig_act_duration.publish(IrrigatorActuationDuration);
       #if MQTT_FETCH_SUB_VERBOSE_DEBUG
         Serial.print("Invalid value for setting IrrigatorActuationDuration: less than the permitted minimum of ");
         Serial.println(IRRIG_MIN_ACTUATION_DURATION);
@@ -1373,7 +1385,7 @@ void MQTTIrrigActuationDuration_callback(char* str, uint16_t len)
   }
 
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    if(convertion_from_string_success)
+    if(convertion_from_string_success && !semantic_error)
     {
       printFetchedValue("IrrigatorActuationDuration", IrrigatorActuationDuration);
     }
@@ -1383,7 +1395,7 @@ void MQTTIrrigActuationDuration_callback(char* str, uint16_t len)
       MQTTpub_valid_irrig_act_duration.publish(IrrigatorActuationDuration);
     }
   #else
-    if(!convertion_from_string_success)
+    if(!convertion_from_string_success && semantic_error)
     {
       MQTTpub_valid_irrig_act_duration.publish(IrrigatorActuationDuration);
     }
@@ -1397,13 +1409,28 @@ void MQTTIrrigActuationDuration_callback(char* str, uint16_t len)
 void MQTTIrrigActuationDelay_callback(char* str, uint16_t len)
 {
   bool convertion_from_string_success;
+  bool semantic_error = false;
+  uint32_t effectiveIrrigatorBetweenActivationsDelay = IrrigatorBetweenActivationsDelay;
+
   convertion_from_string_success = MQTT_uint32_callbackCore(&IrrigatorBetweenActivationsDelay, str, len);
   if(convertion_from_string_success == true)
   {
-    preferences.putUInt(IrrigatorBetweenActivationsDelay_TopicKey, IrrigatorBetweenActivationsDelay);
+    if(IrrigatorBetweenActivationsDelay >= (uint32_t) IRRIG_MIN_ACTUATION_DELAY)
+    {
+      preferences.putUInt(IrrigatorBetweenActivationsDelay_TopicKey, IrrigatorBetweenActivationsDelay);
+    }
+    else
+    {
+      semantic_error = true;
+      IrrigatorBetweenActivationsDelay = effectiveIrrigatorBetweenActivationsDelay;
+      #if MQTT_FETCH_SUB_VERBOSE_DEBUG
+        Serial.print("Invalid value for setting IrrigatorBetweenActivationsDelay: less than the permitted minimum of ");
+        Serial.println(IRRIG_MIN_ACTUATION_DELAY);
+      #endif
+    }
   }
   #if MQTT_FETCH_SUB_VERBOSE_DEBUG
-    if(convertion_from_string_success)
+    if(convertion_from_string_success && !semantic_error)
     {
       printFetchedValue("IrrigatorBetweenActivationsDelay", IrrigatorBetweenActivationsDelay);
     }
@@ -1413,7 +1440,7 @@ void MQTTIrrigActuationDelay_callback(char* str, uint16_t len)
       MQTTpub_valid_irrig_act_delay.publish(IrrigatorBetweenActivationsDelay);
     }
   #else
-    if(!convertion_from_string_success)
+    if(!convertion_from_string_success && semantic_error)
     {
       MQTTpub_valid_irrig_act_delay.publish(IrrigatorBetweenActivationsDelay);
     }
@@ -1752,7 +1779,7 @@ void MQTTMinTempThr_callback(char *str, uint16_t len)
 
 // ==== Safe conversions ====
 
-bool __isStrIntZero(char* str, uint16_t len){
+bool isStrIntZero(char* str, uint16_t len){
 
   for ( uint16_t i = 0; i < len; i++ )
   {
@@ -1807,7 +1834,7 @@ bool SafeStrToInt32(char *str, uint16_t len, int32_t *int_value)
     */
     if ( (*int_value) == 0 )
     {   
-        return __isStrIntZero(str, len);
+        return isStrIntZero(str, len);
     }
     else
     {
@@ -1852,7 +1879,7 @@ bool SafeStrToUInt32(char *str, uint16_t len, uint32_t *uint_value)
     */
     if ( (*uint_value) == 0 )
     { 
-        return __isStrIntZero(str, len);
+        return isStrIntZero(str, len);
     }
     else
     {
