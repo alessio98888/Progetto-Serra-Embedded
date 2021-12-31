@@ -3,10 +3,8 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
-#include <Adafruit_Sensor.h>
-#include <DHT_U.h>
-#include <DHT.h>
 #include "secrets.h"
+#include "DHTesp.h"
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 #include <Preferences.h>
@@ -37,6 +35,22 @@ have value zero.
   // Queues
   #define PRINT_COORDINATOR_QUEUE_USAGE    DEBUG && ( 0 )    
   
+  // Mutex
+  #define MUTEX_ACCESS_VERBOSE_DEBUG       DEBUG && ( 1 )
+
+  #if MUTEX_ACCESS_VERBOSE_DEBUG
+    #define PRINT_MUTEX_TAKE(mutex_name, task_name){\
+                                                      Serial.print(mutex_name);\
+                                                      Serial.print(" TAKEN by task: ");\
+                                                      Serial.println(task_name);\
+                                                    }
+    #define PRINT_MUTEX_GIVE(mutex_name, task_name){\
+                                                      Serial.print(mutex_name);\
+                                                      Serial.print(" GIVEN by task: ");\
+                                                      Serial.println(task_name);\
+                                                    }
+  #endif
+
   // WiFi connectivity
   #define WiFi_CONNECTION_VERBOSE_DEBUG    DEBUG && ( 1 )    
   
@@ -61,7 +75,7 @@ have value zero.
   #endif
 
   // Sensors
-  #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
+  #define DEBUG_SENSORS                    DEBUG && ( 0 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
   #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 1 ) // Enables verbose sensor output
 
   #if DEBUG_SENSORS
@@ -69,7 +83,7 @@ have value zero.
   #endif
 
   // Actuators
-  #define DEBUG_ACTUATORS                  DEBUG && ( 1 ) // Disables the actual activation of the actuator devices
+  #define DEBUG_ACTUATORS                  DEBUG && ( 0 ) // Disables the actual activation of the actuator devices
   #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 1 ) // Enables verbose actuator output
 
   // Memory usage
@@ -79,11 +93,17 @@ have value zero.
 /*----------- Task priority assignation ------------*/
 /*--------------------------------------------------*/
 #define COORDINATOR_PRIORITY 2
-#define CONNECT_PRIORITY 4
-#define MQTT_PUBLISH_PRIORITY 2
+#define CONNECT_PRIORITY 3
+#define MQTT_PUBLISH_PRIORITY 1
 #define MQTT_FETCH_SUBSCRIPTIONS_PRIORITY 2
 #define SENSOR_TASKS_PRIORITY 1
-#define ACTUATOR_TASKS_PRIORITY 5
+#define ACTUATOR_TASKS_PRIORITY 4
+
+/*--------------------------------------------------*/
+/*----------------- Queue Config -------------------*/
+/*--------------------------------------------------*/
+#define coordinator_queue_len Amount_of_sensor_ids*2 // Coordinator queue length
+#define MQTTpub_queue_len Amount_of_sensor_ids*2
 
 // Minimum irrigator execution time allowed
 #define IRRIG_MIN_ACTUATION_DURATION 1000
@@ -100,7 +120,7 @@ have value zero.
 #define MQTTConnectAttemptDelay 3000
 
 // MQTT publish
-#define MQTT_PUBLISH_PER_EXECUTION 5
+#define MQTT_PUBLISH_PER_EXECUTION MQTTpub_queue_len
 #define MQTT_MAX_PUBLISHING_ATTEMPTS 3
 
 // MQTT subscribe
@@ -154,16 +174,16 @@ have value zero.
 /*------------------ Pin Defines -------------------*/
 /*--------------------------------------------------*/
 // Sensors
-#define DHT11PIN 4 // Digital temperature and air humidity sensor
-#define YL69PIN 22 // Analog soil humidity sensor
+#define DHT11PIN 26 // Digital temperature and air humidity sensor
+#define YL69PIN 34 // Analog soil humidity sensor
 // Actuators
 #define irrigatorPIN 32 // Controls the custom PCB in charge of the irrigator management
 #define lightsPIN 33 // Controls a relè designed to switch on and off a 220V growlamp
 
 // LED signals
-#define connectionLED 18 // ON as long as the system doensn't recognize connectivity issues
-#define irrigatorLED 17 // ON as long as the irrigator is active
-#define greenhouseStateWarningLED 15 // ON if the greenhouse is in a bad stategreenhouse
+#define connectionLED 14 // ON as long as the system doensn't recognize connectivity issues
+#define irrigatorLED 12 // ON as long as the irrigator is active
+#define greenhouseStateWarningLED 13 // ON if the greenhouse is in a bad stategreenhouse
 
 /*--------------------------------------------------*/
 /*------ MQTT Default configurable parameters ------*/
@@ -189,12 +209,6 @@ have value zero.
 #define DHT11HumidityPeriod 5000    // 5 sec -- Temporary debug value
 #define YL69SoilHumidityPeriod 5000 // 5 sec -- Temporary debug value
 #define LuxReadingPeriod 5000       // 5 sec -- Temporary debug value
-
-/*--------------------------------------------------*/
-/*----------------- Queue Config -------------------*/
-/*--------------------------------------------------*/
-#define coordinator_queue_len Amount_of_sensor_ids*2 // Coordinator queue length
-#define MQTTpub_queue_len 10 
 
 /*--------------------------------------------------*/
 /*-------------- Lights toggle delay----------------*/
@@ -228,6 +242,93 @@ struct MQTT_subscription{
   void (*callback) (char*, uint16_t);
   uint32_t default_setting_value;
   void* setting_variable;
+};
+
+
+// *MQTT Configurable parameters*
+
+struct threshold_setting_manage_uint8_t{
+
+  /* 
+    Contains pointers to important variables used by the functions 
+    that implement the protocol for updating thresholds with values fetched from MQTT.
+  */
+   
+  uint8_t* min_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* min_thr_readable_name;
+
+  uint8_t* max_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* max_thr_readable_name;
+  uint8_t effective_min_thr;
+  uint8_t effective_max_thr;
+
+  uint8_t pending_min_thr;
+  uint8_t pending_max_thr;
+  bool pending_min_thr_flag;
+  bool pending_max_thr_flag;
+
+  const char* min_thr_topic_key;
+  const char* max_thr_topic_key;
+};
+
+struct threshold_setting_manage_uint32_t{
+
+  /* 
+    Contains pointers to important variables used by the functions 
+    that implement the protocol for updating thresholds with values fetched from MQTT.
+  */
+   
+  uint32_t* min_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* min_thr_readable_name;
+
+  uint32_t* max_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* max_thr_readable_name;
+  uint32_t effective_min_thr;
+  uint32_t effective_max_thr;
+
+  uint32_t pending_min_thr;
+  uint32_t pending_max_thr;
+  bool pending_min_thr_flag;
+  bool pending_max_thr_flag;
+
+  const char* min_thr_topic_key;
+  const char* max_thr_topic_key;
+};
+
+struct threshold_setting_manage_int8_t{
+
+  /* 
+    Contains pointers to important variables used by the functions 
+    that implement the protocol for updating thresholds with values fetched from MQTT.
+  */
+   
+  int8_t* min_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* min_thr_readable_name;
+
+  int8_t* max_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
+                 // in which it contains the new value fetched from MQTT broker.
+
+  const char* max_thr_readable_name;
+  int8_t effective_min_thr;
+  int8_t effective_max_thr;
+
+  int8_t pending_min_thr;
+  int8_t pending_max_thr;
+  bool pending_min_thr_flag;
+  bool pending_max_thr_flag;
+
+  const char* min_thr_topic_key;
+  const char* max_thr_topic_key;
 };
 
 #endif // S_GREENHOUSE_CONFIG_H -- End of the header file

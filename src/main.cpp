@@ -192,94 +192,6 @@ static Adafruit_MQTT_Publish MQTTpub_valid_irrig_act_duration = Adafruit_MQTT_Pu
 static Adafruit_MQTT_Publish MQTTpub_valid_irrig_act_delay = Adafruit_MQTT_Publish(&mqtt, IRRIG_ACT_DELAY_TOPIC);
 
 
-/*--------------------------------------------------*/
-/*---------- MQTT Configurable parameters ----------*/
-/*--------------------------------------------------*/
-
-struct threshold_setting_manage_uint8_t{
-
-  /* 
-    Contains pointers to important variables used by the functions 
-    that implement the protocol for updating thresholds with values fetched from MQTT.
-  */
-   
-  uint8_t* min_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
-                 // in which it contains the new value fetched from MQTT broker.
-
-  const char* min_thr_readable_name;
-
-  uint8_t* max_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
-                 // in which it contains the new value fetched from MQTT broker.
-
-  const char* max_thr_readable_name;
-  uint8_t effective_min_thr;
-  uint8_t effective_max_thr;
-
-  uint8_t pending_min_thr;
-  uint8_t pending_max_thr;
-  bool pending_min_thr_flag;
-  bool pending_max_thr_flag;
-
-  const char* min_thr_topic_key;
-  const char* max_thr_topic_key;
-};
-
-struct threshold_setting_manage_uint32_t{
-
-  /* 
-    Contains pointers to important variables used by the functions 
-    that implement the protocol for updating thresholds with values fetched from MQTT.
-  */
-   
-  uint32_t* min_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
-                 // in which it contains the new value fetched from MQTT broker.
-
-  const char* min_thr_readable_name;
-
-  uint32_t* max_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
-                 // in which it contains the new value fetched from MQTT broker.
-
-  const char* max_thr_readable_name;
-  uint32_t effective_min_thr;
-  uint32_t effective_max_thr;
-
-  uint32_t pending_min_thr;
-  uint32_t pending_max_thr;
-  bool pending_min_thr_flag;
-  bool pending_max_thr_flag;
-
-  const char* min_thr_topic_key;
-  const char* max_thr_topic_key;
-};
-
-struct threshold_setting_manage_int8_t{
-
-  /* 
-    Contains pointers to important variables used by the functions 
-    that implement the protocol for updating thresholds with values fetched from MQTT.
-  */
-   
-  int8_t* min_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
-                 // in which it contains the new value fetched from MQTT broker.
-
-  const char* min_thr_readable_name;
-
-  int8_t* max_thr; // actual setting variable, different from effective only inside the relative MQTT callback 
-                 // in which it contains the new value fetched from MQTT broker.
-
-  const char* max_thr_readable_name;
-  int8_t effective_min_thr;
-  int8_t effective_max_thr;
-
-  int8_t pending_min_thr;
-  int8_t pending_max_thr;
-  bool pending_min_thr_flag;
-  bool pending_max_thr_flag;
-
-  const char* min_thr_topic_key;
-  const char* max_thr_topic_key;
-};
-
 // Irrigator
 static uint32_t IrrigatorActuationDuration;
 static uint32_t IrrigatorBetweenActivationsDelay;
@@ -357,8 +269,13 @@ static MQTT_subscription *MQTT_subscription_array[MAXSUBSCRIPTIONS] = {
 /*--------------------------------------------------*/
 /*------------ Digital sensors Config --------------*/
 /*--------------------------------------------------*/
-// Create a DHT object called dht on the pin and with the sensor type you’ve specified previously
-static DHT dht(DHT11PIN, DHT11);
+// Create a DHT object called dht
+static DHTesp dht;
+static TempAndHumidity last_DHT11_reading = { NAN, NAN };
+
+// last_DHT11_reading mutex
+static SemaphoreHandle_t xlast_DHT11_reading_Mutex = NULL;
+static StaticSemaphore_t xlast_DHT11_reading_MutexBuffer;
 
 /*--------------------------------------------------*/
 /*----------------- Boolean flags ------------------*/
@@ -377,9 +294,29 @@ void setup(void)
   // initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
   
+  lightsOn = false;
 
-  // Start connection phase
+  // Queue creation
+  coordinator_queue = xQueueCreate((UBaseType_t) coordinator_queue_len, sizeof(struct sensor_msg));
+  MQTTpub_queue = xQueueCreate((UBaseType_t) MQTTpub_queue_len, sizeof(struct sensor_msg));
 
+  // Necessary initializations to perform sensor readings
+  dht.setup(DHT11PIN, DHTesp::DHT11);
+  pinMode(YL69PIN, INPUT);
+
+  // last_DHT11_reading mutex creation
+  xlast_DHT11_reading_Mutex = xSemaphoreCreateMutexStatic( &xlast_DHT11_reading_MutexBuffer );
+
+  // Necessary initializations to access actuators
+  pinMode(irrigatorPIN, OUTPUT);
+  pinMode(lightsPIN, OUTPUT);
+
+  // Signal LEDs initializations
+  pinMode(connectionLED, OUTPUT);
+  pinMode(irrigatorLED, OUTPUT);
+  pinMode(greenhouseStateWarningLED, OUTPUT);
+
+  // *Start connection phase*
   xTaskCreatePinnedToCore(
     TaskConnect
     ,  "TaskConnect"   
@@ -460,25 +397,6 @@ void setup(void)
   {
     MQTTFetchSubscriptions(PREFERENCES_SETTINGS_SCOPE_NAME, MQTT_SUBSCRIPTION_READING_TIMEOUT);
   }
-
-  lightsOn = false;
-
-  // Queue creation
-  coordinator_queue = xQueueCreate((UBaseType_t) coordinator_queue_len, sizeof(struct sensor_msg));
-  MQTTpub_queue = xQueueCreate((UBaseType_t) MQTTpub_queue_len, sizeof(struct sensor_msg));
-
-  // Necessary initializations to perform sensor readings
-  dht.begin();
-  pinMode(YL69PIN, INPUT);
-
-  // Necessary initializations to access actuators
-  pinMode(irrigatorPIN, OUTPUT);
-  pinMode(lightsPIN, OUTPUT);
-
-  // Signal LEDs initializations
-  pinMode(connectionLED, OUTPUT);
-  pinMode(irrigatorLED, OUTPUT);
-  pinMode(greenhouseStateWarningLED, OUTPUT);
 
   xTaskCreatePinnedToCore(
     TaskCoordinator
@@ -606,11 +524,9 @@ void TaskCoordinator(void *pvParameters)
       {
         case Sensor_Id_DHT11Temperature:
           
-          #if DEBUG_SENSORS
-            #if SENSORS_VERBOSE_DEBUG
-              Serial.print("Temperature: ");                       
-              Serial.println(sensor_reading_struct.sensor_reading);
-            #endif
+          #if SENSORS_VERBOSE_DEBUG
+            Serial.print("Temperature: ");                       
+            Serial.println(sensor_reading_struct.sensor_reading);
           #endif
           
           MQTTQueueSend( sensor_reading_struct );
@@ -630,12 +546,10 @@ void TaskCoordinator(void *pvParameters)
           break;  
 
         case Sensor_Id_DHT11Humidity:
-          
-          #if DEBUG_SENSORS
-            #if SENSORS_VERBOSE_DEBUG
-              Serial.print("Air humidity: ");
-              Serial.println(sensor_reading_struct.sensor_reading);
-            #endif
+        
+          #if SENSORS_VERBOSE_DEBUG
+            Serial.print("Air humidity: ");
+            Serial.println(sensor_reading_struct.sensor_reading);
           #endif
 
           if ( sensor_reading_struct.sensor_reading < MinAirMoistureThreshold ||\
@@ -655,11 +569,9 @@ void TaskCoordinator(void *pvParameters)
 
         case Sensor_Id_YL69SoilHumidity:
 
-          #if DEBUG_SENSORS
-            #if SENSORS_VERBOSE_DEBUG
-              Serial.print("Soil humidity: ");
-              Serial.println(sensor_reading_struct.sensor_reading);
-            #endif
+          #if SENSORS_VERBOSE_DEBUG
+            Serial.print("Soil humidity: ");
+            Serial.println(sensor_reading_struct.sensor_reading);
           #endif
 
           MQTTQueueSend( sensor_reading_struct );
@@ -685,11 +597,9 @@ void TaskCoordinator(void *pvParameters)
 
         case Sensor_Id_Lux:
 
-          #if DEBUG_SENSORS
-            #if SENSORS_VERBOSE_DEBUG
-              Serial.print("Lux: ");
-              Serial.println(sensor_reading_struct.sensor_reading);
-            #endif
+          #if SENSORS_VERBOSE_DEBUG
+            Serial.print("Lux: ");
+            Serial.println(sensor_reading_struct.sensor_reading);
           #endif
 
           MQTTQueueSend( sensor_reading_struct );
@@ -773,6 +683,7 @@ void TaskReadDHT11Temperature(void *pvParameters)
   /*
     Read temperature as Celsius (the default)
   */
+  TempAndHumidity new_DHT11_reading = { 0.0, 0.0 };
   
   struct sensor_msg sensor_reading_struct;
   sensor_reading_struct.sensor = Sensor_Id_DHT11Temperature;
@@ -785,7 +696,31 @@ void TaskReadDHT11Temperature(void *pvParameters)
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
-      sensor_reading_struct.sensor_reading = dht.readTemperature(); // actual sensor reading
+      new_DHT11_reading = dht.getTempAndHumidity();
+
+      // Critical section defined with a coarse grained mutex
+      xSemaphoreTake(xlast_DHT11_reading_Mutex, portMAX_DELAY);
+      #if MUTEX_ACCESS_VERBOSE_DEBUG
+        PRINT_MUTEX_TAKE("xlast_DHT11_reading_Mutex", "TaskReadDHT11Temperature");
+      #endif
+
+      if ( isnan(new_DHT11_reading.temperature) != true )
+      {
+        sensor_reading_struct.sensor_reading = new_DHT11_reading.temperature;
+        last_DHT11_reading.temperature = new_DHT11_reading.temperature;
+      }
+      else
+        sensor_reading_struct.sensor_reading = last_DHT11_reading.temperature;
+
+      if( isnan(new_DHT11_reading.humidity) != true )
+          last_DHT11_reading.humidity = new_DHT11_reading.humidity;
+
+      #if MUTEX_ACCESS_VERBOSE_DEBUG
+        PRINT_MUTEX_GIVE("xlast_DHT11_reading_Mutex", "TaskReadDHT11Temperature");
+      #endif
+      xSemaphoreGive(xlast_DHT11_reading_Mutex);
+      // End of the critical section
+
     #endif
     
     if( xQueueSend ( coordinator_queue , 
@@ -812,6 +747,7 @@ void TaskReadDHT11Humidity(void *pvParameters)
     Read humidity in per cent. 
     So, if the humidity is 60 per cent(which is the average humidity), then 60 per cent of the air around you is water vapor
   */
+  TempAndHumidity new_DHT11_reading = { 0.0, 0.0 };
   
   struct sensor_msg sensor_reading_struct;
   sensor_reading_struct.sensor = Sensor_Id_DHT11Humidity;
@@ -826,7 +762,30 @@ void TaskReadDHT11Humidity(void *pvParameters)
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
-      sensor_reading_struct.sensor_reading = dht.readHumidity(); // actual sensor reading
+      new_DHT11_reading = dht.getTempAndHumidity();
+
+      // Critical section defined with a coarse grained mutex
+      xSemaphoreTake(xlast_DHT11_reading_Mutex, portMAX_DELAY);
+      #if MUTEX_ACCESS_VERBOSE_DEBUG
+        PRINT_MUTEX_TAKE("xlast_DHT11_reading_Mutex", "TaskReadDHT11Humidity");
+      #endif
+
+      if ( isnan(new_DHT11_reading.humidity) != true )
+      {
+        sensor_reading_struct.sensor_reading = new_DHT11_reading.humidity;
+        last_DHT11_reading.humidity = new_DHT11_reading.humidity;
+      }
+      else
+        sensor_reading_struct.sensor_reading = last_DHT11_reading.humidity;
+
+      if( isnan(new_DHT11_reading.temperature) != true )
+        last_DHT11_reading.temperature = new_DHT11_reading.temperature;
+
+      #if MUTEX_ACCESS_VERBOSE_DEBUG
+        PRINT_MUTEX_GIVE("xlast_DHT11_reading_Mutex", "TaskReadDHT11Humidity");
+      #endif
+      xSemaphoreGive(xlast_DHT11_reading_Mutex);
+      // End of the critical section
     #endif
     
     if( xQueueSend ( coordinator_queue , 
@@ -864,7 +823,7 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
-      sensor_reading_struct.sensor_reading = map(analogRead(YL69PIN), 1023, 0, 0, 100);  // actual sensor reading
+      sensor_reading_struct.sensor_reading = 100 - (( analogRead(YL69PIN) / 4095.0 ) * 100 );  // actual sensor reading
     #endif
     
     if( xQueueSend ( coordinator_queue , 
@@ -902,7 +861,7 @@ void TaskReadLux(void *pvParameters)
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
-      // actual sensor reading
+      sensor_reading_struct.sensor_reading = (float32_t) random(0,100);
     #endif
     
     if( xQueueSend ( coordinator_queue , 
@@ -1049,7 +1008,7 @@ void TaskConnect( void *pvParameters )
     else {}
 
     #if PRINT_TASK_MEMORY_USAGE
-      printStackUsageInfo("TaskActuatorLights");
+      printStackUsageInfo("TaskConnect");
     #endif
 
     vTaskSuspend(NULL);
@@ -1213,10 +1172,6 @@ void connectWiFi()
   #if WiFi_CONNECTION_VERBOSE_DEBUG
     Serial.print("SUCCESSFULLY CONNECTED TO: ");
     Serial.println(ssid);
-  #endif
-
-  #if PRINT_TASK_MEMORY_USAGE
-    printStackUsageInfo("TaskConnectWiFi");
   #endif
 }
 
