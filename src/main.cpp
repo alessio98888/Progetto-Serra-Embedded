@@ -269,6 +269,7 @@ static MQTT_subscription *MQTT_subscription_array[MAXSUBSCRIPTIONS] = {
 /*--------------------------------------------------*/
 /*------------ Digital sensors Config --------------*/
 /*--------------------------------------------------*/
+// DHT11
 // Create a DHT object called dht
 static DHTesp dht;
 static TempAndHumidity last_DHT11_reading = { NAN, NAN };
@@ -277,6 +278,9 @@ static TempAndHumidity last_DHT11_reading = { NAN, NAN };
 static SemaphoreHandle_t xlast_DHT11_reading_Mutex = NULL;
 static StaticSemaphore_t xlast_DHT11_reading_MutexBuffer;
 
+// BH1750
+static BH1750 luxsensor(0x23);
+static bool luxsensor_online = false;
 /*--------------------------------------------------*/
 /*----------------- Boolean flags ------------------*/
 /*--------------------------------------------------*/
@@ -290,7 +294,7 @@ static const char* int_to_charpointer[MAXSUBSCRIPTIONS];
 // the setup function runs once when you press reset or power the board
 void setup(void) 
 {
-  
+
   // initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
   
@@ -301,8 +305,28 @@ void setup(void)
   MQTTpub_queue = xQueueCreate((UBaseType_t) MQTTpub_queue_len, sizeof(struct sensor_msg));
 
   // Necessary initializations to perform sensor readings
+  // DHT11
   dht.setup(DHT11PIN, DHTesp::DHT11);
+
+  // BH1750 lux sensor
+  if( Wire.begin(BH1750SDAPIN, BH1750CLPIN) && luxsensor.begin(BH1750::ONE_TIME_HIGH_RES_MODE_2) )
+  {
+    luxsensor_online = true;
+    #if BH1750_LUX_SENSOR_STATUS_DEBUG
+      Serial.println("___________________________BH1750 Lux sensor ONLINE");
+    #endif
+  }
+  else
+  {
+    luxsensor_online = false;
+    #if BH1750_LUX_SENSOR_STATUS_DEBUG
+      Serial.println("___________________________BH1750 Lux sensor OFFLINE");
+    #endif
+  }
+
+  //YL69
   pinMode(YL69PIN, INPUT);
+  pinMode(YL69ACTIVATIONPIN, OUTPUT);
 
   // last_DHT11_reading mutex creation
   xlast_DHT11_reading_Mutex = xSemaphoreCreateMutexStatic( &xlast_DHT11_reading_MutexBuffer );
@@ -470,14 +494,17 @@ void setup(void)
     ,  &task_handle_ActuatorIrrigator
     ,  ARDUINO_RUNNING_CORE);
 
-  xTaskCreatePinnedToCore(
-    TaskActuatorLights
-    ,  "TaskActuatorLights"  
-    ,  1024  
-    ,  NULL
-    ,  ACTUATOR_TASKS_PRIORITY
-    ,  &task_handle_ActuatorLights
-    ,  ARDUINO_RUNNING_CORE);
+  if ( luxsensor_online )
+  {
+    xTaskCreatePinnedToCore(
+      TaskActuatorLights
+      ,  "TaskActuatorLights"  
+      ,  1024  
+      ,  NULL
+      ,  ACTUATOR_TASKS_PRIORITY
+      ,  &task_handle_ActuatorLights
+      ,  ARDUINO_RUNNING_CORE);
+  }
 
   // Now the task scheduler, which takes over control of scheduling individual tasks, is automatically started.
 
@@ -608,21 +635,30 @@ void TaskCoordinator(void *pvParameters)
 
           MQTTQueueSend( sensor_reading_struct );
 
-          // Lights actuation logic
-          if ((sensor_reading_struct.sensor_reading < LightsActivationThreshold)
-            && (lightsOn == false))
+          if ( ( sensor_reading_struct.sensor_reading != NAN ) && ( sensor_reading_struct.sensor_reading > 0 )
+                && luxsensor_online )
           {
-            vTaskResume(task_handle_ActuatorLights); // Activate lights
-          }
-          else if ((sensor_reading_struct.sensor_reading > LightsDeactivationThreshold)
-            && (lightsOn == true))
-          {
-            vTaskResume(task_handle_ActuatorLights); // Deactivate lights
+            // Lights actuation logic
+            if ((sensor_reading_struct.sensor_reading < LightsActivationThreshold)
+              && (lightsOn == false))
+            {
+              vTaskResume(task_handle_ActuatorLights); // Activate lights
+            }
+            else if ((sensor_reading_struct.sensor_reading > LightsDeactivationThreshold)
+              && (lightsOn == true))
+            {
+              vTaskResume(task_handle_ActuatorLights); // Deactivate lights
+            }
+            else
+            {
+              // Do nothing
+            }
           }
           else
           {
-            // Do nothing
+            // If the lux sensor is offline or reads NAN don't interact with the actuator task
           }
+
           break;
 
         default:
@@ -712,7 +748,8 @@ void TaskReadDHT11Temperature(void *pvParameters)
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
-      new_DHT11_reading = dht.getTempAndHumidity();
+
+      new_DHT11_reading = dht.getTempAndHumidity(); // The read is thread safe
 
       // Critical section defined with a coarse grained mutex
       xSemaphoreTake(xlast_DHT11_reading_Mutex, portMAX_DELAY);
@@ -858,7 +895,12 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
+      digitalWrite(YL69ACTIVATIONPIN, HIGH);
+      vTaskDelay(YL69ACTIVATIONPIN / portTICK_PERIOD_MS);
+
       sensor_reading_struct.sensor_reading = 100 - (( analogRead(YL69PIN) / 4095.0 ) * 100 );  // actual sensor reading
+
+      digitalWrite(YL69ACTIVATIONPIN, LOW);
     #endif
     
     if( xQueueSend ( coordinator_queue , 
@@ -905,7 +947,39 @@ void TaskReadLux(void *pvParameters)
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
-      sensor_reading_struct.sensor_reading = (float32_t) random(0,100);
+
+      if (luxsensor_online)
+      {
+        luxsensor.configure(BH1750::ONE_TIME_HIGH_RES_MODE_2);
+        vTaskDelay( 200 / portTICK_PERIOD_MS );
+
+        #if BH1750_LUX_SENSOR_MAX_READING_ATTEMPTS == 1
+
+          if (luxsensor.measurementReady(true))
+            sensor_reading_struct.sensor_reading = luxsensor.readLightLevel();
+          else
+            sensor_reading_struct.sensor_reading = NAN;
+  
+        #else
+
+          if (luxsensor.measurementReady(true)) // If the measurement is ready, read it immediately
+              sensor_reading_struct.sensor_reading = luxsensor.readLightLevel();
+          else // else wait for the refresh rate
+          {
+              vTaskDelay( 120 / portTICK_PERIOD_MS ); // the high res refresh rate is 120ms
+
+              if (!luxsensor.measurementReady(true)) // If it still isn't ready give NaN value
+                sensor_reading_struct.sensor_reading = luxsensor.readLightLevel();
+              else                                   // Else read the value
+                sensor_reading_struct.sensor_reading = luxsensor.readLightLevel();
+          }
+            
+        #endif
+
+      }
+      else
+        sensor_reading_struct.sensor_reading = NAN;
+
     #endif
     
     if( xQueueSend ( coordinator_queue , 
