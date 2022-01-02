@@ -77,17 +77,17 @@ have value zero.
   #endif
 
   // Sensors
-  #define DEBUG_SENSORS                    DEBUG && ( 0 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
+  #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
   #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 1 ) // Enables verbose sensor output
   #define BH1750_LUX_SENSOR_STATUS_DEBUG   DEBUG && ( 1 )           
 
   #if DEBUG_SENSORS
-    #define sensorSim() ((float32_t) random(0,100)) // This *SHOULD* be substituted with a regular function according to the MISRA C guidelines
+    #define sensorSim(range) ((float32_t) random(0,range)) // This *SHOULD* be substituted with a regular function according to the MISRA C guidelines
   #endif
 
   // Actuators
   #define DEBUG_ACTUATORS                  DEBUG && ( 0 ) // Disables the actual activation of the actuator devices
-  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 1 ) // Enables verbose actuator output
+  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 0 ) // Enables verbose actuator output
 
   // Memory usage
   #define PRINT_TASK_MEMORY_USAGE          DEBUG && ( 0 )     
