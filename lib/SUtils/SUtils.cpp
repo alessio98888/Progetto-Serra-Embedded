@@ -22,3 +22,11 @@ void printStackUsageInfo(const char* readableTaskName)
     Serial.println(" high water mark (words): ");
     Serial.println(uxTaskGetStackHighWaterMark(NULL));
 } 
+
+void printStringAndFloat(char* s, float32_t f)
+{
+    char stringOfFloat[10];
+    dtostrf(f, 3, 2, stringOfFloat);
+    strcat(s, stringOfFloat);
+    Serial.println(s);
+}

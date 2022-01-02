@@ -29,14 +29,17 @@ have value zero.
 */ 
 #define DEBUG                                1  // Enables the debug mode 
 
+  // Tasks Execution Time Profiling
+  #define USE_PROFILER                     DEBUG && ( 1 )
+
   // Preferences
-  #define DEBUG_PREFERENCES                DEBUG && ( 1 )
+  #define DEBUG_PREFERENCES                DEBUG && ( 0 )
 
   // Queues
   #define PRINT_COORDINATOR_QUEUE_USAGE    DEBUG && ( 0 )    
   
   // Mutex
-  #define MUTEX_ACCESS_VERBOSE_DEBUG       DEBUG && ( 1 )
+  #define MUTEX_ACCESS_VERBOSE_DEBUG       DEBUG && ( 0 )
 
   #if MUTEX_ACCESS_VERBOSE_DEBUG
     #define PRINT_MUTEX_TAKE(mutex_name, task_name){\
@@ -52,10 +55,10 @@ have value zero.
   #endif
 
   // WiFi connectivity
-  #define WiFi_CONNECTION_VERBOSE_DEBUG    DEBUG && ( 1 )    
+  #define WiFi_CONNECTION_VERBOSE_DEBUG    DEBUG && ( 0 )    
   
   // MQTT connectivity
-  #define MQTT_CONNECTION_VERBOSE_DEBUG    DEBUG && ( 1 )
+  #define MQTT_CONNECTION_VERBOSE_DEBUG    DEBUG && ( 0 )
 
   // MQTT queue reset
   #define MQTT_QUEUE_VERBOSE_REMOVE_DEBUG  DEBUG && ( 0 )
@@ -75,16 +78,16 @@ have value zero.
   #endif
 
   // Sensors
-  #define DEBUG_SENSORS                    DEBUG && ( 0 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
-  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 1 ) // Enables verbose sensor output
+  #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
+  #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 0 ) // Enables verbose sensor output
 
   #if DEBUG_SENSORS
     #define sensorSim() ((float32_t) random(0,100)) // This *SHOULD* be substituted with a regular function according to the MISRA C guidelines
   #endif
 
   // Actuators
-  #define DEBUG_ACTUATORS                  DEBUG && ( 0 ) // Disables the actual activation of the actuator devices
-  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 1 ) // Enables verbose actuator output
+  #define DEBUG_ACTUATORS                  DEBUG && ( 1 ) // Disables the actual activation of the actuator devices
+  #define ACTUATORS_VERBOSE_DEBUG          DEBUG && ( 0 ) // Enables verbose actuator output
 
   // Memory usage
   #define PRINT_TASK_MEMORY_USAGE          DEBUG && ( 0 )     
@@ -104,6 +107,12 @@ have value zero.
 /*--------------------------------------------------*/
 #define coordinator_queue_len Amount_of_sensor_ids*2 // Coordinator queue length
 #define MQTTpub_queue_len Amount_of_sensor_ids*2
+
+/*--------------------------------------------------*/
+/*----------------- Queue Config -------------------*/
+/*--------------------------------------------------*/
+#define coordinator_queue_len Amount_of_sensor_ids*2 // Coordinator queue length
+#define MQTTpub_queue_len Amount_of_sensor_ids*2 
 
 // Minimum irrigator execution time allowed
 #define IRRIG_MIN_ACTUATION_DURATION 1000

@@ -1,5 +1,5 @@
 #include "SGreenHouseConfig.h"
-
+#include <TimeProfiler.h>
 #if DEBUG
   #include "SUtils.h"
 #endif
@@ -500,7 +500,6 @@ void TaskCoordinator(void *pvParameters)
   /*
     Task Coordinator
   */
-
   struct sensor_msg sensor_reading_struct;
 
   // True if greenhouseStateWarningLED is ON, false otherwise
@@ -512,6 +511,11 @@ void TaskCoordinator(void *pvParameters)
 
   for (;;) 
   {
+    
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskCoordinator);
+    #endif
+
     for(uint8_t i = 0; i < (uint8_t) Amount_of_sensor_ids; i++)
     {
       #if PRINT_COORDINATOR_QUEUE_USAGE
@@ -667,14 +671,21 @@ void TaskCoordinator(void *pvParameters)
         digitalWrite(greenhouseStateWarningLED, LOW);
       }
     }
-    
-    vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);
 
+    #if USE_PROFILER 
+      TIMEPROFILE_END(TaskCoordinator);
+      char out[50] = "TaskCoordinator exec time(ms):";
+      printStringAndFloat(out, TimeProfiler.getProfile("TaskCoordinator"));
+    #endif
+
+    vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);
+    
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskCoordinator");
     #endif
     
   }
+
 }
 
 void TaskReadDHT11Temperature(void *pvParameters)
@@ -691,7 +702,12 @@ void TaskReadDHT11Temperature(void *pvParameters)
   TickType_t xLastActivationTime = xTaskGetTickCount();
   for (;;) 
   {
+
     vTaskDelayUntil(&xLastActivationTime, DHT11TemperaturePeriod / portTICK_PERIOD_MS);
+
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskReadDHT11Temperature);
+    #endif
 
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
@@ -732,6 +748,11 @@ void TaskReadDHT11Temperature(void *pvParameters)
       /* Failed to post the message */
     }
                     
+    #if USE_PROFILER 
+      TIMEPROFILE_END(TaskReadDHT11Temperature);
+      char out[50] = "TaskReadDHT11Temperature exec time(ms):";
+      printStringAndFloat(out, TimeProfiler.getProfile("TaskReadDHT11Temperature"));
+    #endif
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadDHT11Temperature");
@@ -759,6 +780,10 @@ void TaskReadDHT11Humidity(void *pvParameters)
     
     vTaskDelayUntil(&xLastActivationTime, DHT11HumidityPeriod / portTICK_PERIOD_MS);
 
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskReadDHT11Humidity);
+    #endif
+    
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
@@ -797,6 +822,12 @@ void TaskReadDHT11Humidity(void *pvParameters)
       /* Failed to post the message */
     }
                     
+                    
+    #if USE_PROFILER 
+      TIMEPROFILE_END(TaskReadDHT11Humidity);
+      char out[50] = "TaskReadDHT11Humidity exec time(ms):";
+      printStringAndFloat(out, TimeProfiler.getProfile("TaskReadDHT11Humidity"));
+    #endif
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadDHT11Humidity");
@@ -820,6 +851,10 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
   {
     vTaskDelayUntil(&xLastActivationTime, YL69SoilHumidityPeriod / portTICK_PERIOD_MS);
 
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskReadYL69SoilHumidity);
+    #endif
+
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
@@ -835,6 +870,11 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
       /* Failed to post the message */
     }
                     
+    #if USE_PROFILER 
+      TIMEPROFILE_END(TaskReadYL69SoilHumidity);
+      char out[50] = "TaskReadYL69SoilHumidity exec time(ms):";
+      printStringAndFloat(out, TimeProfiler.getProfile("TaskReadYL69SoilHumidity"));
+    #endif
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadYL69SoilHumidity");
@@ -858,6 +898,10 @@ void TaskReadLux(void *pvParameters)
   {
     vTaskDelayUntil(&xLastActivationTime, LuxReadingPeriod / portTICK_PERIOD_MS);
 
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskReadLux);
+    #endif
+
     #if DEBUG_SENSORS
       sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
     #else
@@ -873,6 +917,12 @@ void TaskReadLux(void *pvParameters)
       /* Failed to post the message */
     }
                     
+                    
+    #if USE_PROFILER 
+      TIMEPROFILE_END(TaskReadLux);
+      char out[50] = "TaskReadLux exec time(ms):";
+      printStringAndFloat(out, TimeProfiler.getProfile("TaskReadLux"));
+    #endif
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskReadLux");
@@ -893,6 +943,11 @@ void TaskActuatorIrrigator(void *pvParameters)
 
   for(;;)
   {  
+
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskActuatorIrrigator);
+    #endif
+
     digitalWrite(irrigatorLED, HIGH);
 
     #if DEBUG_ACTUATORS
@@ -908,7 +963,6 @@ void TaskActuatorIrrigator(void *pvParameters)
     vTaskDelay(IrrigatorActuationDuration / portTICK_PERIOD_MS);
 
 
-
     #if DEBUG_ACTUATORS
       #if ACTUATORS_VERBOSE_DEBUG
         Serial.println("***Irrigator Suspended***");
@@ -917,12 +971,18 @@ void TaskActuatorIrrigator(void *pvParameters)
       digitalWrite(irrigatorPIN, LOW);                    
     #endif
     
+    digitalWrite(irrigatorLED, LOW);
+
+    #if USE_PROFILER 
+      TIMEPROFILE_END(TaskActuatorIrrigator);
+      char out[50] = "TaskActuatorIrrigator exec time(ms):";
+      printStringAndFloat(out, TimeProfiler.getProfile("TaskActuatorIrrigator"));
+    #endif
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskActuatorIrrigator");
     #endif
-    
-    digitalWrite(irrigatorLED, LOW);
+
     // This delay makes sure the task won't be reactivated before a certain amount of time
     vTaskDelay( IrrigatorBetweenActivationsDelay / portTICK_PERIOD_MS );
     vTaskSuspend(NULL);
@@ -943,6 +1003,11 @@ void TaskActuatorLights(void *pvParameters)
   
   for(;;)
   {  
+
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskActuatorLights1);
+    #endif
+
     #if DEBUG_ACTUATORS
       #if ACTUATORS_VERBOSE_DEBUG
         Serial.println("***Lights Activated***");
@@ -953,9 +1018,19 @@ void TaskActuatorLights(void *pvParameters)
 
     lightsOn = true;
 
+    #if USE_PROFILER 
+      TIMEPROFILE_END(TaskActuatorLights1);
+      char out[50] = "TaskActuatorLights exec time(ms):";
+      printStringAndFloat(out, TimeProfiler.getProfile("TaskActuatorLights1"));
+    #endif
+
     // Wait some time before allowing to turn off the lights
     vTaskDelay(lightsToggleDelay / portTICK_PERIOD_MS);
     vTaskSuspend( NULL );
+
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskActuatorLights2);
+    #endif
 
     lightsOn = false;
 
@@ -967,6 +1042,11 @@ void TaskActuatorLights(void *pvParameters)
       digitalWrite(lightsPIN, LOW);                    
     #endif
     
+    #if USE_PROFILER 
+      TIMEPROFILE_END(TaskActuatorLights2);
+      char out2[50] = "TaskActuatorLights exec time(ms):";
+      printStringAndFloat(out2, TimeProfiler.getProfile("TaskActuatorLights2"));
+    #endif
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskActuatorLights");
@@ -987,6 +1067,10 @@ void TaskConnect( void *pvParameters )
 
   for(;;)
   {
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskConnect);
+    #endif
+
     digitalWrite(connectionLED, LOW);
 
     if (WiFi.status() != WL_CONNECTED)
@@ -1010,6 +1094,12 @@ void TaskConnect( void *pvParameters )
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskConnect");
     #endif
+   
+    #if USE_PROFILER 
+      TIMEPROFILE_END(TaskConnect);
+      char out[50] = "TaskConnect exec time(ms):";
+      printStringAndFloat(out, TimeProfiler.getProfile("TaskConnect"));
+    #endif
 
     vTaskSuspend(NULL);
   }
@@ -1023,6 +1113,10 @@ void TaskMQTTpublish( void* pvParameters )
   struct sensor_msg sensor_reading_struct;
   for (;;)
   {
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskMQTTpublish);
+    #endif
+    
     if(mqtt.ping() == true)
     {
       for( uint8_t i = 0; i < (uint8_t) MQTT_PUBLISH_PER_EXECUTION ; i++)
@@ -1065,6 +1159,12 @@ void TaskMQTTpublish( void* pvParameters )
     printStackUsageInfo("TaskMQTTpublish");
   #endif
 
+  #if USE_PROFILER 
+    TIMEPROFILE_END(TaskMQTTpublish);
+    char out[50] = "TaskMQTTpublish exec time(ms):";
+    printStringAndFloat(out, TimeProfiler.getProfile("TaskMQTTpublish"));
+  #endif
+
   vTaskDelay(MQTTPublishPeriod / portTICK_PERIOD_MS);
   }
 }
@@ -1075,6 +1175,10 @@ void TaskMQTTfetchSubscriptions( void *pvParameters )
 
   for(;;)
   {
+
+    #if USE_PROFILER
+      TIMEPROFILE_BEGIN(TaskMQTTfetchSubscriptions);
+    #endif
 
     if(mqtt.ping() == true)
     {
@@ -1088,6 +1192,12 @@ void TaskMQTTfetchSubscriptions( void *pvParameters )
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskMQTTfetchSubscriptions");
+    #endif
+
+    #if USE_PROFILER 
+      TIMEPROFILE_END(TaskMQTTfetchSubscriptions);
+      char out[50] = "TaskMQTTfetchSubscriptions exec time(ms):";
+      printStringAndFloat(out, TimeProfiler.getProfile("TaskMQTTfetchSubscriptions"));
     #endif
 
     vTaskDelay(MQTTSubscribePeriod / portTICK_PERIOD_MS);
@@ -1173,6 +1283,7 @@ void connectWiFi()
     Serial.print("SUCCESSFULLY CONNECTED TO: ");
     Serial.println(ssid);
   #endif
+
 }
 
 void connectMQTT()
