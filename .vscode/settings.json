@@ -11,6 +11,11 @@
         "tuple": "cpp",
         "type_traits": "cpp",
         "utility": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "deque": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "initializer_list": "cpp"
     }
 }

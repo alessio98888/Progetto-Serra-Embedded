@@ -3,8 +3,10 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <Wire.h>
 #include "secrets.h"
 #include "DHTesp.h"
+#include <BH1750.h>
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 #include <Preferences.h>
@@ -77,6 +79,7 @@ have value zero.
   // Sensors
   #define DEBUG_SENSORS                    DEBUG && ( 0 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
   #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 1 ) // Enables verbose sensor output
+  #define BH1750_LUX_SENSOR_STATUS_DEBUG   DEBUG && ( 1 )           
 
   #if DEBUG_SENSORS
     #define sensorSim() ((float32_t) random(0,100)) // This *SHOULD* be substituted with a regular function according to the MISRA C guidelines
@@ -105,10 +108,10 @@ have value zero.
 #define coordinator_queue_len Amount_of_sensor_ids*2 // Coordinator queue length
 #define MQTTpub_queue_len Amount_of_sensor_ids*2
 
-// Minimum irrigator execution time allowed
-#define IRRIG_MIN_ACTUATION_DURATION 1000
-#define IRRIG_MIN_ACTUATION_DELAY 1000
-
+/*--------------------------------------------------*/
+/*--------------- Other task config ----------------*/
+/*--------------------------------------------------*/
+// *CONNECTIVITY*
 // Setup connection configuration
 #define SETUP_MAX_CONNECTION_ATTEMPTS 5
 
@@ -125,6 +128,18 @@ have value zero.
 
 // MQTT subscribe
 #define MQTT_SUBSCRIPTION_READING_TIMEOUT 1000
+
+// *SENSORS*
+// YL-69 soil moisture sensor reading time
+#define YL69_READING_TIME 200
+// Max BH1750 light intensity (lux) sensor reding attempts
+#define BH1750_LUX_SENSOR_MAX_READING_ATTEMPTS 1 // Can only be 1 or 2 tries
+
+// *ACTUATORS*
+// Minimum irrigator execution time allowed
+#define IRRIG_MIN_ACTUATION_DURATION 1000
+#define IRRIG_MIN_ACTUATION_DELAY 1000
+
 /*--------------------------------------------------*/
 /*------------------- MQTT topics ------------------*/
 /*--------------------------------------------------*/
@@ -174,8 +189,11 @@ have value zero.
 /*------------------ Pin Defines -------------------*/
 /*--------------------------------------------------*/
 // Sensors
-#define DHT11PIN 26 // Digital temperature and air humidity sensor
+#define DHT11PIN 27 // Digital temperature and air humidity sensor
 #define YL69PIN 34 // Analog soil humidity sensor
+#define YL69ACTIVATIONPIN 16
+#define BH1750CLPIN 25 // BH1750 I2C clk
+#define BH1750SDAPIN 26 // BH1750 I2C data
 // Actuators
 #define irrigatorPIN 32 // Controls the custom PCB in charge of the irrigator management
 #define lightsPIN 33 // Controls a relè designed to switch on and off a 220V growlamp
@@ -207,7 +225,7 @@ have value zero.
 #define MQTTSubscribePeriod 10000
 #define DHT11TemperaturePeriod 5000 // 5 sec -- Temporary debug value
 #define DHT11HumidityPeriod 5000    // 5 sec -- Temporary debug value
-#define YL69SoilHumidityPeriod 5000 // 5 sec -- Temporary debug value
+#define YL69SoilHumidityPeriod 10000 // 5 sec -- Temporary debug value
 #define LuxReadingPeriod 5000       // 5 sec -- Temporary debug value
 
 /*--------------------------------------------------*/
