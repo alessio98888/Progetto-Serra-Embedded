@@ -309,20 +309,27 @@ void setup(void)
   dht.setup(DHT11PIN, DHTesp::DHT11);
 
   // BH1750 lux sensor
-  if( Wire.begin(BH1750SDAPIN, BH1750CLPIN) && luxsensor.begin(BH1750::ONE_TIME_HIGH_RES_MODE_2) )
-  {
+  #if DEBUG_SENSORS
     luxsensor_online = true;
     #if BH1750_LUX_SENSOR_STATUS_DEBUG
-      Serial.println("___________________________BH1750 Lux sensor ONLINE");
+        Serial.println("___________________________BH1750 Lux sensor SIMULATION MODE");
     #endif
-  }
-  else
-  {
-    luxsensor_online = false;
-    #if BH1750_LUX_SENSOR_STATUS_DEBUG
-      Serial.println("___________________________BH1750 Lux sensor OFFLINE");
-    #endif
-  }
+  #else
+    if( Wire.begin(BH1750SDAPIN, BH1750CLPIN) && luxsensor.begin(BH1750::ONE_TIME_HIGH_RES_MODE_2) )
+    {
+      luxsensor_online = true;
+      #if BH1750_LUX_SENSOR_STATUS_DEBUG
+        Serial.println("___________________________BH1750 Lux sensor ONLINE");
+      #endif
+    }
+    else
+    {
+      luxsensor_online = false;
+      #if BH1750_LUX_SENSOR_STATUS_DEBUG
+        Serial.println("___________________________BH1750 Lux sensor OFFLINE");
+      #endif
+    }
+  #endif
 
   //YL69
   pinMode(YL69PIN, INPUT);
@@ -746,7 +753,7 @@ void TaskReadDHT11Temperature(void *pvParameters)
     #endif
 
     #if DEBUG_SENSORS
-      sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
+      sensor_reading_struct.sensor_reading = sensorSim(100); // DEBUG: sensor simulation
     #else
 
       new_DHT11_reading = dht.getTempAndHumidity(); // The read is thread safe
@@ -822,7 +829,7 @@ void TaskReadDHT11Humidity(void *pvParameters)
     #endif
     
     #if DEBUG_SENSORS
-      sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
+      sensor_reading_struct.sensor_reading = sensorSim(100); // DEBUG: sensor simulation
     #else
       new_DHT11_reading = dht.getTempAndHumidity();
 
@@ -893,7 +900,7 @@ void TaskReadYL69SoilHumidity(void *pvParameters)
     #endif
 
     #if DEBUG_SENSORS
-      sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
+      sensor_reading_struct.sensor_reading = sensorSim(100); // DEBUG: sensor simulation
     #else
       digitalWrite(YL69ACTIVATIONPIN, HIGH);
       vTaskDelay(YL69ACTIVATIONPIN / portTICK_PERIOD_MS);
@@ -945,7 +952,7 @@ void TaskReadLux(void *pvParameters)
     #endif
 
     #if DEBUG_SENSORS
-      sensor_reading_struct.sensor_reading = sensorSim(); // DEBUG: sensor simulation
+      sensor_reading_struct.sensor_reading = sensorSim(100000); // DEBUG: sensor simulation
     #else
 
       if (luxsensor_online)
