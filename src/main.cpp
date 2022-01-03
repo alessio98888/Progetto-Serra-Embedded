@@ -544,15 +544,17 @@ void TaskCoordinator(void *pvParameters)
   // their last read, true if it was a bad state, false otherwise 
   bool BadSensorStateArray[Amount_of_sensor_ids] = { 0 }; 
 
+  TickType_t xLastActivationTime = xTaskGetTickCount();
   for (;;) 
   {
+    vTaskDelayUntil(&xLastActivationTime, CoordinatorPeriod / portTICK_PERIOD_MS);
     for(uint8_t i = 0; i < (uint8_t) Amount_of_sensor_ids; i++)
     {
       #if PRINT_COORDINATOR_QUEUE_USAGE
         printQueueUsageInfo(coordinator_queue, "Coordinator queue");
       #endif
 
-      xQueueReceive(coordinator_queue, &sensor_reading_struct, portMAX_DELAY);
+      xQueueReceive(coordinator_queue, &sensor_reading_struct, 0);
 
       switch (sensor_reading_struct.sensor)
       {
@@ -711,7 +713,6 @@ void TaskCoordinator(void *pvParameters)
       }
     }
     
-    vTaskDelay(CoordinatorPeriod / portTICK_PERIOD_MS);
 
     #if PRINT_TASK_MEMORY_USAGE
       printStackUsageInfo("TaskCoordinator");
@@ -1124,13 +1125,15 @@ void TaskMQTTpublish( void* pvParameters )
   (void) pvParameters;
 
   struct sensor_msg sensor_reading_struct;
+  TickType_t xLastActivationTime = xTaskGetTickCount();
   for (;;)
   {
+    vTaskDelayUntil(&xLastActivationTime, MQTTPublishPeriod / portTICK_PERIOD_MS);
     if(mqtt.ping() == true)
     {
       for( uint8_t i = 0; i < (uint8_t) MQTT_PUBLISH_PER_EXECUTION ; i++)
       {
-        if(xQueueReceive(MQTTpub_queue, &sensor_reading_struct, portMAX_DELAY) != pdPASS)
+        if(xQueueReceive(MQTTpub_queue, &sensor_reading_struct, 0) != pdPASS)
         {
           break;
         }
@@ -1168,7 +1171,6 @@ void TaskMQTTpublish( void* pvParameters )
     printStackUsageInfo("TaskMQTTpublish");
   #endif
 
-  vTaskDelay(MQTTPublishPeriod / portTICK_PERIOD_MS);
   }
 }
 
