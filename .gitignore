@@ -25,3 +25,7 @@ secrets.h
 
 # Local notes
 notes.txt
+
+# cppcheck
+main.cpp.ctu-info
+main.cpp.dump

@@ -21,7 +21,7 @@ static TaskHandle_t task_handle_MQTTfetchSubscriptions = NULL;
 /*--------------------------------------------------*/
 /*----------- Task Function Prototypes -------------*/
 /*--------------------------------------------------*/
-void TaskCoordinator ( void *pvParameters );
+void TaskCoordinator(void *pvParameters);
 void TaskReadDHT11Temperature( void *pvParameters );
 void TaskReadDHT11Humidity( void *pvParameters );
 void TaskReadYL69SoilHumidity( void *pvParameters );
@@ -566,8 +566,8 @@ void TaskCoordinator(void *pvParameters)
           MQTTQueueSend( sensor_reading_struct );
 
           // If a bad state is detected
-          if ( sensor_reading_struct.sensor_reading < MinTemperatureThreshold ||\
-              sensor_reading_struct.sensor_reading > MaxTemperatureThreshold   )
+          if ( ( sensor_reading_struct.sensor_reading < MinTemperatureThreshold )
+              || ( sensor_reading_struct.sensor_reading > MaxTemperatureThreshold ))
           {
             BadSensorStateArray[Sensor_Id_DHT11Temperature] = true;
           } // else if the bad state is over
@@ -586,8 +586,8 @@ void TaskCoordinator(void *pvParameters)
             Serial.println(sensor_reading_struct.sensor_reading);
           #endif
 
-          if ( sensor_reading_struct.sensor_reading < MinAirMoistureThreshold ||\
-                sensor_reading_struct.sensor_reading > MaxAirMoistureThreshold   )
+          if ( (sensor_reading_struct.sensor_reading < MinAirMoistureThreshold)
+              || (sensor_reading_struct.sensor_reading > MaxAirMoistureThreshold ))
           {
             BadSensorStateArray[Sensor_Id_DHT11Humidity] = true;
           }
@@ -616,8 +616,8 @@ void TaskCoordinator(void *pvParameters)
             vTaskResume(task_handle_ActuatorIrrigator);
           }
 
-          if ( sensor_reading_struct.sensor_reading < MinSoilMoistureThreshold ||\
-                sensor_reading_struct.sensor_reading > MaxSoilMoistureThreshold       )
+          if ( (sensor_reading_struct.sensor_reading < MinSoilMoistureThreshold)
+              || (sensor_reading_struct.sensor_reading > MaxSoilMoistureThreshold))
           {
             BadSensorStateArray[Sensor_Id_YL69SoilHumidity] = true;
           }
@@ -722,10 +722,12 @@ void TaskCoordinator(void *pvParameters)
 
 void TaskReadDHT11Temperature(void *pvParameters)
 {
-
   /*
     Read temperature as Celsius (the default)
   */
+  
+  (void) pvParameters;
+
   TempAndHumidity new_DHT11_reading = { 0.0, 0.0 };
   
   struct sensor_msg sensor_reading_struct;
@@ -754,10 +756,14 @@ void TaskReadDHT11Temperature(void *pvParameters)
         last_DHT11_reading.temperature = new_DHT11_reading.temperature;
       }
       else
+      {
         sensor_reading_struct.sensor_reading = last_DHT11_reading.temperature;
+      }
 
       if( isnan(new_DHT11_reading.humidity) != true )
+      {
           last_DHT11_reading.humidity = new_DHT11_reading.humidity;
+      }
 
       #if MUTEX_ACCESS_VERBOSE_DEBUG
         PRINT_MUTEX_GIVE("xlast_DHT11_reading_Mutex", "TaskReadDHT11Temperature");
@@ -820,10 +826,14 @@ void TaskReadDHT11Humidity(void *pvParameters)
         last_DHT11_reading.humidity = new_DHT11_reading.humidity;
       }
       else
+      {
         sensor_reading_struct.sensor_reading = last_DHT11_reading.humidity;
+      }
 
       if( isnan(new_DHT11_reading.temperature) != true )
+      {
         last_DHT11_reading.temperature = new_DHT11_reading.temperature;
+      }
 
       #if MUTEX_ACCESS_VERBOSE_DEBUG
         PRINT_MUTEX_GIVE("xlast_DHT11_reading_Mutex", "TaskReadDHT11Humidity");
@@ -918,30 +928,42 @@ void TaskReadLux(void *pvParameters)
 
         #if BH1750_LUX_SENSOR_MAX_READING_ATTEMPTS == 1
 
-          if (luxsensor.measurementReady(true))
+          if ( luxsensor.measurementReady(true) == true )
+          {
             sensor_reading_struct.sensor_reading = luxsensor.readLightLevel();
+          }
           else
+          {
             sensor_reading_struct.sensor_reading = NAN;
-  
+          }
+
         #else
 
-          if (luxsensor.measurementReady(true)) // If the measurement is ready, read it immediately
+          if ( luxsensor.measurementReady(true) == true) // If the measurement is ready, read it immediately
+          {
               sensor_reading_struct.sensor_reading = luxsensor.readLightLevel();
+          }
           else // else wait for the refresh rate
           {
               vTaskDelay( 120 / portTICK_PERIOD_MS ); // the high res refresh rate is 120ms
 
-              if (!luxsensor.measurementReady(true)) // If it still isn't ready give NaN value
-                sensor_reading_struct.sensor_reading = luxsensor.readLightLevel();
+              if ( luxsensor.measurementReady(true) == false) // If it still isn't ready give NaN value
+              {
+                sensor_reading_struct.sensor_reading = NAN;
+              }
               else                                   // Else read the value
+              {
                 sensor_reading_struct.sensor_reading = luxsensor.readLightLevel();
+              }
           }
             
         #endif
 
       }
       else
+      {
         sensor_reading_struct.sensor_reading = NAN;
+      }
 
     #endif
     
@@ -1728,7 +1750,7 @@ bool MQTT_int8_callbackCore(int8_t *variable_ptr, char* str, uint16_t len)
 
   if(SafeStrToInt32(str, len, &int32_value))
   {
-    if( ((int32_t) INT8_MIN <= int32_value) && (int32_value <= (int32_t) INT8_MAX) )
+    if( ( ((int32_t) INT8_MIN) <= int32_value) && ( int32_value <= ((int32_t) INT8_MAX )) )
     {
       *variable_ptr = (int8_t) int32_value;
       return true;
@@ -1860,7 +1882,7 @@ bool SafeStrToInt32(char *str, uint16_t len, int32_t *int_value)
     Checking if the number is between the INT32 extremes
     guarantees it to be a 32 bit integer.
   */
-  if (((int64_t) INT32_MIN <= int64_value) && (int64_value <= (int64_t) INT32_MAX))
+  if ( ( ((int64_t) INT32_MIN) <= int64_value ) && ( int64_value <= ((int64_t) INT32_MAX) ) )
   {
     *int_value = (int32_t) int64_value;
     /*
@@ -2003,6 +2025,8 @@ void setThreshold_uint8_t(uint8_t* new_thr,
             Serial.print(other_thr_readable_name);
             Serial.print(" accepted: ");
             Serial.println(*pending_other_thr);
+          #else
+            (void) other_thr_readable_name;
           #endif
 
           *pending_other_thr_flag = false;
@@ -2020,6 +2044,8 @@ void setThreshold_uint8_t(uint8_t* new_thr,
           Serial.print(thr_readable_name); 
           Serial.print(" pending with value: ");
           Serial.println(*pending_thr);
+        #else
+          (void) thr_readable_name;
         #endif
       }
     }
@@ -2045,7 +2071,7 @@ void setThreshold_uint8_t(uint8_t* new_thr,
       Serial.println(*new_thr);
     #endif
 
-    if(*pending_other_thr_flag == true && validThresholdsFun(*pending_other_thr, *new_thr) == true)
+    if( ( *pending_other_thr_flag == true ) && ( validThresholdsFun(*pending_other_thr, *new_thr) == true ) )
     {
       //*pending_thr_flag = false;
       *pending_other_thr_flag = false;
@@ -2144,6 +2170,8 @@ void setThreshold_uint32_t(uint32_t* new_thr,
             Serial.print(other_thr_readable_name);
             Serial.print(" accepted: ");
             Serial.println(*pending_other_thr);
+          #else
+            (void) other_thr_readable_name;
           #endif
 
           *pending_other_thr_flag = false;
@@ -2161,6 +2189,8 @@ void setThreshold_uint32_t(uint32_t* new_thr,
           Serial.print(thr_readable_name); 
           Serial.print(" pending with value: ");
           Serial.println(*pending_thr);
+        #else
+          (void) thr_readable_name;
         #endif
       }
     }
@@ -2186,7 +2216,7 @@ void setThreshold_uint32_t(uint32_t* new_thr,
       Serial.println(*new_thr);
     #endif
 
-    if(*pending_other_thr_flag == true && validThresholdsFun(*pending_other_thr, *new_thr) == true)
+    if( ( *pending_other_thr_flag == true ) && ( validThresholdsFun(*pending_other_thr, *new_thr) == true ) )
     {
       //*pending_thr_flag = false;
       *pending_other_thr_flag = false;
@@ -2285,6 +2315,8 @@ void setThreshold_int8_t(int8_t* new_thr,
             Serial.print(other_thr_readable_name);
             Serial.print(" accepted: ");
             Serial.println(*pending_other_thr);
+          #else
+            (void) other_thr_readable_name;
           #endif
 
           *pending_other_thr_flag = false;
@@ -2302,6 +2334,8 @@ void setThreshold_int8_t(int8_t* new_thr,
           Serial.print(thr_readable_name); 
           Serial.print(" pending with value: ");
           Serial.println(*pending_thr);
+        #else
+          (void) thr_readable_name;
         #endif
       }
     }
@@ -2327,7 +2361,7 @@ void setThreshold_int8_t(int8_t* new_thr,
       Serial.println(*new_thr);
     #endif
 
-    if(*pending_other_thr_flag == true && validThresholdsFun(*pending_other_thr, *new_thr) == true)
+    if( ( *pending_other_thr_flag == true ) && ( validThresholdsFun(*pending_other_thr, *new_thr) == true ) )
     {
       //*pending_thr_flag = false;
       *pending_other_thr_flag = false;

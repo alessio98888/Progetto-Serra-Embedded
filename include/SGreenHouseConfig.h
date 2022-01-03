@@ -29,7 +29,7 @@ All the debug macros are defined as: "DEBUG && ( user_defined_flag )"
 so that if the debug mode is turned off, all the macros will
 have value zero.
 */ 
-#define DEBUG                                1  // Enables the debug mode 
+#define DEBUG                                0  // Enables the debug mode 
 
   // Preferences
   #define DEBUG_PREFERENCES                DEBUG && ( 1 )
@@ -77,7 +77,7 @@ have value zero.
   #endif
 
   // Sensors
-  #define DEBUG_SENSORS                    DEBUG && ( 1 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
+  #define DEBUG_SENSORS                    DEBUG && ( 0 ) // Enables sensor simulation for debug purposes (It also disables the actual sensor readings)
   #define SENSORS_VERBOSE_DEBUG            DEBUG && ( 1 ) // Enables verbose sensor output
   #define BH1750_LUX_SENSOR_STATUS_DEBUG   DEBUG && ( 1 )           
 
@@ -123,7 +123,7 @@ have value zero.
 #define MQTTConnectAttemptDelay 3000
 
 // MQTT publish
-#define MQTT_PUBLISH_PER_EXECUTION MQTTpub_queue_len
+#define MQTT_PUBLISH_PER_EXECUTION ( ((uint8_t) Amount_of_sensor_ids) * ((uint8_t) 2) )
 #define MQTT_MAX_PUBLISHING_ATTEMPTS 3
 
 // MQTT subscribe
