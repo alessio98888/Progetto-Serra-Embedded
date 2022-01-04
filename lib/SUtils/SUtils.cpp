@@ -17,8 +17,8 @@ void printQueueUsageInfo(QueueHandle_t xQueue, const char* readableQueueName)
 
 void printStackUsageInfo(const char* readableTaskName)
 {
-    // Print out remaining stack memory (in words of 4 bytes)
+    // Print out remaining stack memory (in bytes)
     Serial.print(readableTaskName);
-    Serial.println(" high water mark (words): ");
+    Serial.println(" high water mark (bytes): ");
     Serial.println(uxTaskGetStackHighWaterMark(NULL));
 } 
