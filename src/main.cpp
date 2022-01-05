@@ -351,7 +351,7 @@ void setup(void)
   xTaskCreatePinnedToCore(
     TaskConnect
     ,  "TaskConnect"   
-    ,  2144+64  
+    ,  ( 2144 + 128 )  
     ,  NULL
     ,  CONNECT_PRIORITY
     ,  &task_handle_Connect
@@ -432,7 +432,7 @@ void setup(void)
   xTaskCreatePinnedToCore(
     TaskCoordinator
     ,  "TaskCoordinator"   // A name just for humans
-    ,  504+64  // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  ( 504 + 128 )  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
     ,  COORDINATOR_PRIORITY  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  &task_handle_Coordinator 
@@ -441,7 +441,7 @@ void setup(void)
    xTaskCreatePinnedToCore(
     TaskMQTTfetchSubscriptions
     ,  "TaskMQTTfetchSubscriptions"  
-    ,  1408+64  
+    ,  ( 1440 + 128 )
     ,  NULL
     ,  MQTT_FETCH_SUBSCRIPTIONS_PRIORITY
     ,  &task_handle_MQTTfetchSubscriptions
@@ -450,7 +450,7 @@ void setup(void)
   xTaskCreatePinnedToCore(
     TaskMQTTpublish
     ,  "TaskMQTTpublish"  
-    ,  1180+64  
+    ,  ( 1200 + 128 ) 
     ,  NULL
     ,  MQTT_PUBLISH_PRIORITY
     ,  &task_handle_MQTTpublish
@@ -459,7 +459,7 @@ void setup(void)
   xTaskCreatePinnedToCore(
     TaskReadDHT11Temperature
     ,  "TaskReadDHT11Temperature"   
-    ,  616+64  
+    ,  ( 648 + 128 )   
     ,  NULL
     ,  SENSOR_TASKS_PRIORITY  
     ,  &task_handle_ReadDHT11Temperature 
@@ -468,7 +468,7 @@ void setup(void)
   xTaskCreatePinnedToCore(
     TaskReadDHT11Humidity
     ,  "TaskReadDHT11Humidity"   
-    ,  612+64  
+    ,  ( 644 + 128 )  
     ,  NULL
     ,  SENSOR_TASKS_PRIORITY  
     ,  &task_handle_ReadDHT11Humidity
@@ -477,7 +477,7 @@ void setup(void)
   xTaskCreatePinnedToCore(
     TaskReadYL69SoilHumidity
     ,  "TaskReadYL69SoilHumidity"   
-    ,  704+64  
+    ,  ( 704 + 128 )  
     ,  NULL
     ,  SENSOR_TASKS_PRIORITY  
     ,  &task_handle_ReadYL69SoilHumidity
@@ -486,7 +486,7 @@ void setup(void)
   xTaskCreatePinnedToCore(
     TaskReadLux
     ,  "TaskReadLux"   
-    ,  748+64  
+    ,  ( 1676 + 128 ) 
     ,  NULL
     ,  SENSOR_TASKS_PRIORITY  
     ,  &task_handle_ReadLux
@@ -495,7 +495,7 @@ void setup(void)
   xTaskCreatePinnedToCore(
     TaskActuatorIrrigator
     ,  "TaskActuatorIrrigator"  
-    ,  496+64 
+    ,  ( 496 + 128 ) 
     ,  NULL
     ,  ACTUATOR_TASKS_PRIORITY
     ,  &task_handle_ActuatorIrrigator
@@ -506,7 +506,7 @@ void setup(void)
     xTaskCreatePinnedToCore(
       TaskActuatorLights
       ,  "TaskActuatorLights"  
-      ,  496+64  
+      ,  ( 496 + 128 )    
       ,  NULL
       ,  ACTUATOR_TASKS_PRIORITY
       ,  &task_handle_ActuatorLights
